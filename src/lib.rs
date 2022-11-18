@@ -319,17 +319,10 @@ impl Bot {
         });
 
         let http = Client::new(token.clone());
-        let application_id = http
-            .current_user_application()
-            .exec()
-            .await?
-            .model()
-            .await?
-            .id;
+        let application_id = http.current_user_application().await?.model().await?.id;
         let logging_webhook = if let Some(channel_id) = logging_channel_id {
             if let Some(webhook) = http
                 .channel_webhooks(channel_id)
-                .exec()
                 .await?
                 .models()
                 .await?
@@ -340,7 +333,6 @@ impl Bot {
             } else {
                 let webhook = http
                     .create_webhook(channel_id, "Bot Error Logger")?
-                    .exec()
                     .await?
                     .model()
                     .await?;
@@ -386,7 +378,6 @@ impl Bot {
                         .content("There was a message to log but it's too long to send here")
                         .unwrap()
                 })
-                .exec()
                 .await
             {
                 let _ = writeln!(message, "Failed to log the message in the channel: {e}");

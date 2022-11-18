@@ -4,10 +4,9 @@ use twilight_http::client::InteractionClient;
 use twilight_model::{
     application::{
         command::CommandOptionChoice,
-        component::{Component, TextInput},
         interaction::{Interaction, InteractionType},
     },
-    channel::message::MessageFlags,
+    channel::message::{component::TextInput, Component, MessageFlags},
     guild::Permissions,
     http::interaction::{InteractionResponse, InteractionResponseData, InteractionResponseType},
     id::{marker::InteractionMarker, Id},
@@ -59,7 +58,6 @@ impl<'ctx> Handle<'ctx> {
         ctx.http
             .interaction(ctx.application_id)
             .create_response(interaction.id, &interaction.token, &defer_response)
-            .exec()
             .await?;
 
         Ok(Self {
@@ -126,7 +124,6 @@ impl<'ctx> Handle<'ctx> {
             .attachments(&reply.attachments)?
             .flags(reply.flags)
             .tts(reply.tts)
-            .exec()
             .await?;
 
         Ok(())
@@ -161,7 +158,6 @@ impl<'ctx> Handle<'ctx> {
                     }),
                 },
             )
-            .exec()
             .await?;
 
         Ok(())
@@ -200,7 +196,6 @@ impl<'ctx> Handle<'ctx> {
                     }),
                 },
             )
-            .exec()
             .await?;
 
         Ok(())
