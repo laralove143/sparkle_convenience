@@ -289,7 +289,12 @@ pub struct Bot {
 }
 
 impl Bot {
-    /// Create a new context with the given config
+    /// Create a new bot with the given token, intents and event types
+    ///
+    /// It's recommended to pass [`EventTypeFlags::all`] if using a cache
+    ///
+    /// By default [`Self::log`] only prints the message, see
+    /// [`Self::set_logging_channel`] and [`Self::set_logging_file`]
     ///
     /// # Errors
     ///
@@ -298,12 +303,11 @@ impl Bot {
     ///
     /// Returns [`twilight_http::error::Error`] or
     /// [`twilight_http::response::DeserializeBodyError`] if getting the
-    /// application info or the logging webhook fails
+    /// application info fails
     ///
     /// # Panics
     ///
-    /// If not run in a Tokio runtime (under `#[tokio::main]`) or if the webhook
-    /// that was just created doesn't contain a token
+    /// If not run in a Tokio runtime (under `#[tokio::main]`)
     pub async fn new(
         token: String,
         intents: Intents,
@@ -321,38 +325,66 @@ impl Bot {
 
         let http = Client::new(token.clone());
         let application_id = http.current_user_application().await?.model().await?.id;
-        let logging_webhook = if let Some(channel_id) = logging_channel_id {
-            if let Some(webhook) = http
-                .channel_webhooks(channel_id)
-                .await?
-                .models()
-                .await?
-                .into_iter()
-                .find(|webhook| webhook.token.is_some())
-            {
-                Some((webhook.id, webhook.token.unwrap()))
-            } else {
-                let webhook = http
-                    .create_webhook(channel_id, "Bot Error Logger")?
-                    .await?
-                    .model()
-                    .await?;
-                Some((webhook.id, webhook.token.unwrap()))
-            }
-        } else {
-            None
-        };
 
         Ok((
             Self {
                 http,
                 cluster: cluster_arc,
                 application_id,
-                logging_webhook,
-                logging_file_path,
+                logging_webhook: None,
+                logging_file_path: None,
             },
             events,
         ))
+    }
+
+    /// Set the channel to log messages to
+    ///
+    /// Uses the first webhook in the channel that's made by the bot or creates
+    /// a new one if none exist
+    ///
+    /// # Errors
+    ///
+    /// Returns [`twilight_http::error::Error`] or
+    /// [`twilight_http::response::DeserializeBodyError`] if getting or creating
+    /// the logging webhook fails
+    ///
+    /// # Panics
+    ///
+    /// if the webhook that was just created doesn't contain a token
+    pub async fn set_logging_channel(
+        mut self,
+        channel_id: Id<ChannelMarker>,
+    ) -> Result<Self, anyhow::Error> {
+        let webhook = if let Some(webhook) = self
+            .http
+            .channel_webhooks(channel_id)
+            .await?
+            .models()
+            .await?
+            .into_iter()
+            .find(|webhook| webhook.token.is_some())
+        {
+            webhook
+        } else {
+            self.http
+                .create_webhook(channel_id, "Bot Error Logger")?
+                .await?
+                .model()
+                .await?
+        };
+
+        self.logging_webhook = Some((webhook.id, webhook.token.unwrap()));
+
+        Ok(self)
+    }
+
+    /// Set the file to log messages to
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn set_logging_file(mut self, logging_file_path: String) -> Self {
+        self.logging_file_path = Some(logging_file_path);
+
+        self
     }
 
     /// Log the given message
