@@ -61,7 +61,7 @@ use std::{
 use futures as _;
 use thiserror::Error;
 use titlecase::titlecase;
-use twilight_gateway::{cluster::Events, Cluster, Intents};
+use twilight_gateway::{cluster::Events, Cluster, EventTypeFlags, Intents};
 use twilight_http::Client;
 use twilight_model::{
     guild::Permissions,
@@ -133,7 +133,7 @@ impl Prettify for Permissions {
 ///
 /// use futures::stream::StreamExt;
 /// use sparkle_convenience::{interaction::Handle, reply::Reply, Bot, Error, Prettify};
-/// use twilight_gateway::Event;
+/// use twilight_gateway::{Event, EventTypeFlags};
 /// use twilight_model::{
 ///     application::interaction::{Interaction, InteractionData},
 ///     gateway::Intents,
@@ -256,8 +256,7 @@ impl Prettify for Permissions {
 ///     let (bot, mut events) = Bot::new(
 ///         "totally legit token".to_owned(),
 ///         Intents::empty(),
-///         None,
-///         None,
+///         EventTypeFlags::all(),
 ///     )
 ///     .await?;
 ///     let ctx = Arc::new(Context { bot, custom: () });
@@ -308,10 +307,12 @@ impl Bot {
     pub async fn new(
         token: String,
         intents: Intents,
-        logging_channel_id: Option<Id<ChannelMarker>>,
-        logging_file_path: Option<String>,
+        event_types: EventTypeFlags,
     ) -> Result<(Self, Events), anyhow::Error> {
-        let (cluster, events) = Cluster::new(token.clone(), intents).await?;
+        let (cluster, events) = Cluster::builder(token.clone(), intents)
+            .event_types(event_types)
+            .build()
+            .await?;
         let cluster_arc = Arc::new(cluster);
         let cluster_spawn = Arc::clone(&cluster_arc);
         tokio::spawn(async move {
