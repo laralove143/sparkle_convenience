@@ -17,9 +17,9 @@ use crate::{reply::Reply, Bot, Error};
 ///
 /// Created from [`Bot::handle`]
 #[derive(Clone, Debug)]
-pub struct Handle<'ctx> {
+pub struct Handle<'bot> {
     /// The context to use with this command
-    pub ctx: &'ctx Bot,
+    pub bot: &'bot Bot,
     /// The interaction's ID
     pub id: Id<InteractionMarker>,
     /// The interaction's token
@@ -61,7 +61,7 @@ impl Bot {
             .await?;
 
         Ok(Handle {
-            ctx: self,
+            bot: self,
             id: interaction.id,
             token: interaction.token.clone(),
             kind: interaction.kind,
@@ -104,7 +104,7 @@ impl Handle<'_> {
     /// Returns [`twilight_http::error::Error`] if creating the followup
     /// response fails
     pub async fn reply(&self, reply: Reply) -> Result<(), anyhow::Error> {
-        let client = self.ctx.client();
+        let client = self.bot.client();
         let mut followup = client.create_followup(&self.token);
 
         if !reply.content.is_empty() {
@@ -134,7 +134,7 @@ impl Handle<'_> {
         &self,
         choices: Vec<CommandOptionChoice>,
     ) -> Result<(), anyhow::Error> {
-        self.ctx
+        self.bot
             .client()
             .create_response(
                 self.id,
@@ -171,7 +171,7 @@ impl Handle<'_> {
         title: String,
         text_inputs: Vec<TextInput>,
     ) -> Result<(), anyhow::Error> {
-        self.ctx
+        self.bot
             .client()
             .create_response(
                 self.id,

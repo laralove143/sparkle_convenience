@@ -155,8 +155,8 @@ impl Prettify for Permissions {
 ///     }
 /// }
 ///
-/// struct PingCommand<'ctx> {
-///     handle: Handle<'ctx>,
+/// struct PingCommand<'bot> {
+///     handle: Handle<'bot>,
 ///     interaction: Interaction,
 ///     custom: (), // For example, the command options could be here
 /// }
