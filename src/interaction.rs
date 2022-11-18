@@ -17,7 +17,8 @@ use crate::{reply::Reply, Bot, Error};
 ///
 /// Created from [`Bot::handle`]
 #[derive(Clone, Debug)]
-pub struct Handle<'bot> {
+#[allow(clippy::module_name_repetitions)]
+pub struct InteractionHandle<'bot> {
     /// The context to use with this command
     pub bot: &'bot Bot,
     /// The interaction's ID
@@ -37,11 +38,11 @@ impl Bot {
     ///
     /// Returns [`twilight_http::error::Error`] if deferring the interaction
     /// fails
-    pub async fn handle(
+    pub async fn interaction_handle(
         &self,
         interaction: &Interaction,
         ephemeral: bool,
-    ) -> Result<Handle<'_>, anyhow::Error> {
+    ) -> Result<InteractionHandle<'_>, anyhow::Error> {
         let defer_response = InteractionResponse {
             kind: if let InteractionType::MessageComponent | InteractionType::ModalSubmit =
                 interaction.kind
@@ -60,7 +61,7 @@ impl Bot {
             .create_response(interaction.id, &interaction.token, &defer_response)
             .await?;
 
-        Ok(Handle {
+        Ok(InteractionHandle {
             bot: self,
             id: interaction.id,
             token: interaction.token.clone(),
@@ -69,7 +70,7 @@ impl Bot {
     }
 }
 
-impl Handle<'_> {
+impl InteractionHandle<'_> {
     /// Check that the bot has the required permissions
     ///
     /// # Errors

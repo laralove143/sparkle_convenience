@@ -132,7 +132,7 @@ impl Prettify for Permissions {
 /// use std::{ops::Deref, sync::Arc};
 ///
 /// use futures::stream::StreamExt;
-/// use sparkle_convenience::{interaction::Handle, reply::Reply, Bot, Error, Prettify};
+/// use sparkle_convenience::{interaction::InteractionHandle, reply::Reply, Bot, Error, Prettify};
 /// use twilight_gateway::{Event, EventTypeFlags};
 /// use twilight_model::{
 ///     application::interaction::{Interaction, InteractionData},
@@ -156,7 +156,7 @@ impl Prettify for Permissions {
 /// }
 ///
 /// struct PingCommand<'bot> {
-///     handle: Handle<'bot>,
+///     handle: InteractionHandle<'bot>,
 ///     interaction: Interaction,
 ///     custom: (), // For example, the command options could be here
 /// }
@@ -211,7 +211,7 @@ impl Prettify for Permissions {
 ///     }
 ///
 ///     async fn handle_interaction(&self, interaction: Interaction) -> Result<(), anyhow::Error> {
-///         let handle = self.bot.handle(&interaction, false).await?;
+///         let handle = self.bot.interaction_handle(&interaction, false).await?;
 ///
 ///         let Some(InteractionData::ApplicationCommand(data)) = &interaction.data else {
 ///             return Ok(());
