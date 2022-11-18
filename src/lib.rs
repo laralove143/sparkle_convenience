@@ -353,9 +353,9 @@ impl Bot {
     ///
     /// if the webhook that was just created doesn't contain a token
     pub async fn set_logging_channel(
-        mut self,
+        &mut self,
         channel_id: Id<ChannelMarker>,
-    ) -> Result<Self, anyhow::Error> {
+    ) -> Result<(), anyhow::Error> {
         let webhook = if let Some(webhook) = self
             .http
             .channel_webhooks(channel_id)
@@ -376,15 +376,13 @@ impl Bot {
 
         self.logging_webhook = Some((webhook.id, webhook.token.unwrap()));
 
-        Ok(self)
+        Ok(())
     }
 
     /// Set the file to log messages to
     #[allow(clippy::missing_const_for_fn)]
-    pub fn set_logging_file(mut self, logging_file_path: String) -> Self {
+    pub fn set_logging_file(&mut self, logging_file_path: String) {
         self.logging_file_path = Some(logging_file_path);
-
-        self
     }
 
     /// Log the given message
