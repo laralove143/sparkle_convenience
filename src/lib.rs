@@ -99,7 +99,7 @@ impl Prettify for Permissions {
     /// # Example
     ///
     /// ```rust
-    /// use gloom::Prettify;
+    /// use sparkle_convenience::Prettify;
     /// use twilight_model::guild::Permissions;
     ///
     /// assert_eq!(Permissions::empty().prettify(), "");
@@ -132,7 +132,7 @@ impl Prettify for Permissions {
 /// use std::{ops::Deref, sync::Arc};
 ///
 /// use futures::stream::StreamExt;
-/// use gloom::{interaction::Handle, reply::Reply, Bot, Error, Prettify};
+/// use sparkle_convenience::{interaction::Handle, reply::Reply, Bot, Error, Prettify};
 /// use twilight_gateway::Event;
 /// use twilight_model::{
 ///     application::interaction::{Interaction, InteractionData},
