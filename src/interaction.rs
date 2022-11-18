@@ -14,6 +14,8 @@ use twilight_model::{
 use crate::{reply::Reply, Bot, Error};
 
 /// Allows convenient interaction-related methods
+///
+/// Created from [`Bot::handle`]
 #[derive(Clone, Debug)]
 pub struct Handle<'ctx> {
     /// The context to use with this command
@@ -26,8 +28,8 @@ pub struct Handle<'ctx> {
     pub kind: InteractionType,
 }
 
-impl<'ctx> Handle<'ctx> {
-    /// Create a new command
+impl Bot {
+    /// Return an interaction's handle
     ///
     /// Also defers the interaction, which is required for the other methods
     ///
@@ -35,11 +37,11 @@ impl<'ctx> Handle<'ctx> {
     ///
     /// Returns [`twilight_http::error::Error`] if deferring the interaction
     /// fails
-    pub async fn new(
-        ctx: &'ctx Bot,
+    pub async fn handle(
+        &self,
         interaction: &Interaction,
         ephemeral: bool,
-    ) -> Result<Handle<'ctx>, anyhow::Error> {
+    ) -> Result<Handle<'_>, anyhow::Error> {
         let defer_response = InteractionResponse {
             kind: if let InteractionType::MessageComponent | InteractionType::ModalSubmit =
                 interaction.kind
@@ -54,19 +56,20 @@ impl<'ctx> Handle<'ctx> {
             }),
         };
 
-        ctx.http
-            .interaction(ctx.application_id)
+        self.client()
             .create_response(interaction.id, &interaction.token, &defer_response)
             .await?;
 
-        Ok(Self {
-            ctx,
+        Ok(Handle {
+            ctx: self,
             id: interaction.id,
             token: interaction.token.clone(),
             kind: interaction.kind,
         })
     }
+}
 
+impl Handle<'_> {
     /// Check that the bot has the required permissions
     ///
     /// # Errors

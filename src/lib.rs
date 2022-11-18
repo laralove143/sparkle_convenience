@@ -211,7 +211,7 @@ impl Prettify for Permissions {
 ///     }
 ///
 ///     async fn handle_interaction(&self, interaction: Interaction) -> Result<(), anyhow::Error> {
-///         let handle = Handle::new(&self.bot, &interaction, false).await?;
+///         let handle = self.bot.handle(&interaction, false).await?;
 ///
 ///         let Some(InteractionData::ApplicationCommand(data)) = &interaction.data else {
 ///             return Ok(());
