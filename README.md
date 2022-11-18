@@ -1,4 +1,4 @@
-# Gloom
+# Sparkle Convenience
 
 A wrapper over [Twilight](https://github.com/twilight-rs/twilight) that's designed to be convenient to use, without
 relying on callbacks and mostly following Twilight patterns while making your life easier

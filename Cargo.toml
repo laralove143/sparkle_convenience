@@ -1,12 +1,12 @@
 [package]
-name = "gloom"
+name = "sparkle-convenience"
 version = "0.13.0"
 authors = ["lara <laralove143@icloud.com>"]
 edition = "2021"
 description = "A convenient Discord framework, using Twilight as its backend."
 repository = "https://github.com/laralove143/gloom/"
 license = "ISC"
-keywords = ["discord", "discord-api", "twilight", "gloom"]
+keywords = ["discord", "discord-api", "twilight"]
 categories = ["api-bindings", "asynchronous", "caching"]
 
 [dependencies]
