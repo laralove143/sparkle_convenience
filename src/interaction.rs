@@ -104,8 +104,7 @@ impl<'ctx> Handle<'ctx> {
     ///
     /// # Errors
     ///
-    /// Returns [`twilight_validate::message::MessageValidationError`] if the
-    /// reply is invalid (Refer to
+    /// Returns an error if the reply is invalid (Refer to
     /// [`twilight_http::request::application::interaction::CreateFollowup`])
     ///
     /// Returns [`twilight_http::error::Error`] if creating the followup
