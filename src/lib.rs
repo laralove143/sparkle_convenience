@@ -156,7 +156,7 @@ impl Prettify for Permissions {
 /// }
 ///
 /// struct PingCommand<'ctx> {
-///     command: Handle<'ctx>,
+///     handle: Handle<'ctx>,
 ///     interaction: Interaction,
 ///     custom: (), // For example, the command options could be here
 /// }
@@ -181,11 +181,11 @@ impl Prettify for Permissions {
 ///     }
 ///
 ///     async fn run(&self) -> Result<(), Error<PingCommandError>> {
-///         self.command
+///         self.handle
 ///             .check_permissions(Permissions::ADMINISTRATOR, self.interaction.app_permissions)?;
 ///         self.check_bot_scared()?;
 ///
-///         self.command
+///         self.handle
 ///             .reply(Reply::new().content("Pong!".to_owned()))
 ///             .await?;
 ///
@@ -220,7 +220,7 @@ impl Prettify for Permissions {
 ///         if let Err(err) = match data.name.as_ref() {
 ///             "ping" => {
 ///                 PingCommand {
-///                     command: handle.clone(),
+///                     handle: handle.clone(),
 ///                     interaction,
 ///                     custom: (),
 ///                 }
