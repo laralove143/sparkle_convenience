@@ -1,0 +1,23 @@
+[package]
+name = "gloom"
+version = "0.13.0"
+authors = ["lara <laralove143@icloud.com>"]
+edition = "2021"
+description = "A convenient Discord framework, using Twilight as its backend."
+repository = "https://github.com/laralove143/gloom/"
+license = "ISC"
+keywords = ["discord", "discord-api", "twilight", "gloom"]
+categories = ["api-bindings", "asynchronous", "caching"]
+
+[dependencies]
+tokio = { version = "1.21", features = ["rt-multi-thread"] }
+thiserror = "1.0"
+anyhow = "1.0"
+titlecase = "2.2"
+twilight-http = "0.13"
+twilight-gateway = "0.13"
+twilight-model = "0.13"
+
+[dev-dependencies]
+tokio = { version = "1.21", features = ["macros"] }
+futures = "0.3"
