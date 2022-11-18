@@ -58,7 +58,7 @@ impl Bot {
             }),
         };
 
-        self.client()
+        self.interaction_client()
             .create_response(interaction.id, &interaction.token, &defer_response)
             .await?;
 
@@ -72,7 +72,7 @@ impl Bot {
 
     /// Return the interaction client for this bot
     #[must_use]
-    pub const fn client(&self) -> InteractionClient<'_> {
+    pub const fn interaction_client(&self) -> InteractionClient<'_> {
         self.http.interaction(self.application_id)
     }
 }
@@ -112,7 +112,7 @@ impl InteractionHandle<'_> {
     /// Returns [`twilight_http::error::Error`] if creating the followup
     /// response fails
     pub async fn reply(&self, reply: Reply) -> Result<(), anyhow::Error> {
-        let client = self.bot.client();
+        let client = self.bot.interaction_client();
         let mut followup = client.create_followup(&self.token);
 
         if !reply.content.is_empty() {
@@ -143,7 +143,7 @@ impl InteractionHandle<'_> {
         choices: Vec<CommandOptionChoice>,
     ) -> Result<(), anyhow::Error> {
         self.bot
-            .client()
+            .interaction_client()
             .create_response(
                 self.id,
                 &self.token,
@@ -180,7 +180,7 @@ impl InteractionHandle<'_> {
         text_inputs: Vec<TextInput>,
     ) -> Result<(), anyhow::Error> {
         self.bot
-            .client()
+            .interaction_client()
             .create_response(
                 self.id,
                 &self.token,
