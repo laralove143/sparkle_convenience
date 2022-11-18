@@ -57,19 +57,19 @@ trait InteractionExt {
 
 impl InteractionExt for Interaction {
     fn name(&self) -> Option<&str> {
-        Some(match self.data? {
-            InteractionData::ApplicationCommand(data) => &data.name,
-            InteractionData::MessageComponent(data) => &data.custom_id,
-            InteractionData::ModalSubmit(data) => &data.custom_id,
-            _ => None?,
-        })
+        match self.data.as_ref()? {
+            InteractionData::ApplicationCommand(data) => Some(&data.name),
+            InteractionData::MessageComponent(data) => Some(&data.custom_id),
+            InteractionData::ModalSubmit(data) => Some(&data.custom_id),
+            _ => None,
+        }
     }
 
     fn user(&self) -> Option<&User> {
-        Some(
-            self.user
-                .as_ref()
-                .unwrap_or_else(|| self.member.as_ref()?.user.as_ref()?),
-        )
+        if let Some(user) = &self.user {
+            Some(user)
+        } else {
+            Some(self.member.as_ref()?.user.as_ref()?)
+        }
     }
 }
