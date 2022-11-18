@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use twilight_http::client::InteractionClient;
 use twilight_model::{
     application::{
         command::CommandOptionChoice,
@@ -67,6 +68,12 @@ impl Bot {
             token: interaction.token.clone(),
             kind: interaction.kind,
         })
+    }
+
+    /// Return the interaction client for this bot
+    #[must_use]
+    pub const fn client(&self) -> InteractionClient<'_> {
+        self.http.interaction(self.application_id)
     }
 }
 
