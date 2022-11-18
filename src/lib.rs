@@ -389,10 +389,10 @@ impl Bot {
 
     /// Log the given message
     ///
-    /// - If a logging channel was passed, executes a webhook with the message
-    ///   in it
-    /// - If a file path was passed, appends the message to it
     /// - Prints the message
+    /// - If a logging channel was given, executes a webhook with the message as
+    ///   its content
+    /// - If a file path was given, appends the message to it
     ///
     /// If there's an error with logging, also logs the error
     ///
