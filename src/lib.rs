@@ -62,7 +62,7 @@ use futures as _;
 use thiserror::Error;
 use titlecase::titlecase;
 use twilight_gateway::{cluster::Events, Cluster, EventTypeFlags, Intents};
-use twilight_http::Client;
+use twilight_http::{client::InteractionClient, Client};
 use twilight_model::{
     guild::Permissions,
     id::{
@@ -429,5 +429,11 @@ impl Bot {
         }
 
         println!("{message}");
+    }
+
+    /// Return the interaction client for this bot
+    #[must_use]
+    pub const fn client(&self) -> InteractionClient<'_> {
+        self.http.interaction(self.application_id)
     }
 }

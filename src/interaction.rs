@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-use twilight_http::client::InteractionClient;
 use twilight_model::{
     application::{
         command::CommandOptionChoice,
@@ -68,12 +67,6 @@ impl<'ctx> Handle<'ctx> {
         })
     }
 
-    /// Return the interaction client for this command
-    #[must_use]
-    pub const fn client(&self) -> InteractionClient<'_> {
-        self.ctx.http.interaction(self.ctx.application_id)
-    }
-
     /// Check that the bot has the required permissions
     ///
     /// # Errors
@@ -108,7 +101,7 @@ impl<'ctx> Handle<'ctx> {
     /// Returns [`twilight_http::error::Error`] if creating the followup
     /// response fails
     pub async fn reply(&self, reply: Reply) -> Result<(), anyhow::Error> {
-        let client = self.client();
+        let client = self.ctx.client();
         let mut followup = client.create_followup(&self.token);
 
         if !reply.content.is_empty() {
@@ -138,7 +131,8 @@ impl<'ctx> Handle<'ctx> {
         &self,
         choices: Vec<CommandOptionChoice>,
     ) -> Result<(), anyhow::Error> {
-        self.client()
+        self.ctx
+            .client()
             .create_response(
                 self.id,
                 &self.token,
@@ -174,7 +168,8 @@ impl<'ctx> Handle<'ctx> {
         title: String,
         text_inputs: Vec<TextInput>,
     ) -> Result<(), anyhow::Error> {
-        self.client()
+        self.ctx
+            .client()
             .create_response(
                 self.id,
                 &self.token,
