@@ -29,9 +29,14 @@ Provides methods to handle interactions conveniently:
 
 Provides an enum to conveniently handle errors:
 
-- Provides an error enum that combines user and internal errors
+- The error enum combines user and internal errors
 - Easily check that the bot has the permissions required to run a command, and tell the user when it doesn't
 - Handle internal errors by printing them, writing them to a file and executing a webhook, all optionally
+
+## Looking for Ideas
+
+The scope of this project includes anything in Twilight that could be more convenient to use, please make an
+issue for anything that falls under this category!
 
 ## Caching
 
