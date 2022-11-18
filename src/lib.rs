@@ -60,7 +60,6 @@ use std::{
 #[cfg(test)]
 use futures as _;
 use thiserror::Error;
-use titlecase::titlecase;
 use twilight_gateway::{cluster::Events, Cluster, EventTypeFlags, Intents};
 use twilight_http::Client;
 use twilight_model::{
@@ -75,6 +74,8 @@ use twilight_model::{
 pub mod interaction;
 /// The reply struct definition
 pub mod reply;
+/// Various utility functions
+pub mod util;
 
 /// An error enum combining user-related errors with internal errors
 ///
@@ -89,38 +90,6 @@ pub enum Error<T> {
     Internal(#[from] anyhow::Error),
 }
 
-/// Implemented on types that can be turned into pretty strings
-pub trait Prettify: Debug {
-    /// Return the pretty string for this type
-    fn prettify(&self) -> String;
-}
-
-impl Prettify for Permissions {
-    /// # Example
-    ///
-    /// ```rust
-    /// use sparkle_convenience::Prettify;
-    /// use twilight_model::guild::Permissions;
-    ///
-    /// assert_eq!(Permissions::empty().prettify(), "");
-    /// assert_eq!(
-    ///     Permissions::READ_MESSAGE_HISTORY.prettify(),
-    ///     "Read Message History"
-    /// );
-    /// assert_eq!(
-    ///     (Permissions::READ_MESSAGE_HISTORY | Permissions::ADD_REACTIONS).prettify(),
-    ///     "Add Reactions\nRead Message History"
-    /// );
-    /// ```
-    fn prettify(&self) -> String {
-        if self.is_empty() {
-            return String::new();
-        }
-
-        titlecase(&format!("{self:?}").replace(" | ", "\n").replace('_', " "))
-    }
-}
-
 /// All data required to make a bot run
 ///
 /// # Example
@@ -132,7 +101,9 @@ impl Prettify for Permissions {
 /// use std::{ops::Deref, sync::Arc};
 ///
 /// use futures::stream::StreamExt;
-/// use sparkle_convenience::{interaction::InteractionHandle, reply::Reply, Bot, Error, Prettify};
+/// use sparkle_convenience::{
+///     interaction::InteractionHandle, reply::Reply, util::Prettify, Bot, Error,
+/// };
 /// use twilight_gateway::{Event, EventTypeFlags};
 /// use twilight_model::{
 ///     application::interaction::{Interaction, InteractionData},
