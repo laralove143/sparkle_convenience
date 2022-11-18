@@ -57,6 +57,8 @@ use std::{
     sync::Arc,
 };
 
+#[cfg(test)]
+use futures as _;
 use thiserror::Error;
 use titlecase::titlecase;
 use twilight_gateway::{cluster::Events, Cluster, Intents};
