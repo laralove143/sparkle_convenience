@@ -81,6 +81,9 @@ pub mod util;
 
 /// An error enum combining user-related errors with internal errors
 ///
+/// The `Display` implementation on this should only be used with internal
+/// errors
+///
 /// A result with it can be made by using `?` on `Result<T, anyhow::Error>` or
 /// by calling [`IntoOk::ok`] on `Option<T>`
 ///
@@ -89,10 +92,13 @@ pub mod util;
 #[derive(Debug, Error)]
 pub enum Error<T> {
     /// There was a user-related error which should be shown to the user
+    #[error("a user error has been handled like an internal error")]
     User(T),
     /// The bot is missing some required permissions
+    #[error("a user error has been handled like an internal error")]
     MissingPermissions(Permissions),
     /// There was an internal error which should be reported to the developer
+    #[error("{0}")]
     Internal(#[from] anyhow::Error),
 }
 
