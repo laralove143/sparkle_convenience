@@ -51,12 +51,14 @@
 #![doc = include_str!("../README.md")]
 
 use std::{
+    any::type_name,
     fmt::{Debug, Write},
     fs::File,
     io::Write as _,
     sync::Arc,
 };
 
+use anyhow::anyhow;
 #[cfg(test)]
 use futures as _;
 use thiserror::Error;
@@ -79,7 +81,11 @@ pub mod util;
 
 /// An error enum combining user-related errors with internal errors
 ///
-/// Since it implements `From<anyhow::Error>`, it can be made from `?`
+/// A result with it can be made by using `?` on `Result<T, anyhow::Error>` or
+/// by calling [`IntoOk::ok`] on `Option<T>`
+///
+/// When made from an option, the error message only includes the type info and
+/// isn't very useful without enabling backtrace
 #[derive(Debug, Error)]
 pub enum Error<T> {
     /// There was a user-related error which should be shown to the user
@@ -88,6 +94,19 @@ pub enum Error<T> {
     MissingPermissions(Permissions),
     /// There was an internal error which should be reported to the developer
     Internal(#[from] anyhow::Error),
+}
+
+/// Trait implemented on types that can be converted into an [`Error`]
+pub trait IntoOk<T, E>: Sized {
+    /// Conditionally wrap this type in [`Error::Internal`]
+    #[allow(clippy::missing_errors_doc)]
+    fn ok(self) -> Result<T, Error<E>>;
+}
+
+impl<T, E> IntoOk<T, E> for Option<T> {
+    fn ok(self) -> Result<T, Error<E>> {
+        self.ok_or_else(|| Error::Internal(anyhow!("{} is None", type_name::<Self>())))
+    }
 }
 
 /// All data required to make a bot run
@@ -102,7 +121,10 @@ pub enum Error<T> {
 ///
 /// use futures::stream::StreamExt;
 /// use sparkle_convenience::{
-///     interaction::InteractionHandle, reply::Reply, util::Prettify, Bot, Error,
+///     interaction::InteractionHandle,
+///     reply::Reply,
+///     util::{InteractionExt, Prettify},
+///     Bot, Error, IntoOk,
 /// };
 /// use twilight_gateway::{Event, EventTypeFlags};
 /// use twilight_model::{
@@ -134,17 +156,7 @@ pub enum Error<T> {
 ///
 /// impl PingCommand<'_> {
 ///     fn check_bot_scared(&self) -> Result<(), Error<PingCommandError>> {
-///         if self
-///             .interaction
-///             .member
-///             .as_ref()
-///             .unwrap()
-///             .user
-///             .as_ref()
-///             .unwrap()
-///             .name
-///             .contains("boo")
-///         {
+///         if self.interaction.user().ok()?.name.contains("boo") {
 ///             return Err(Error::User(PingCommandError::BotScared));
 ///         }
 ///
