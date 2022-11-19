@@ -41,7 +41,7 @@ impl Prettify for Permissions {
 
 /// Utility methods for
 /// [`twilight_model::application::interaction::Interaction`]
-trait InteractionExt {
+pub trait InteractionExt {
     /// Return the name or custom ID of the interaction
     ///
     /// Returns `None` when called on a
