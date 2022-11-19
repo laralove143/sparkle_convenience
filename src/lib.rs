@@ -103,13 +103,13 @@ pub enum Error<T> {
 }
 
 /// Trait implemented on types that can be converted into an [`Error`]
-pub trait IntoOk<T, E>: Sized {
+pub trait IntoError<T, E>: Sized {
     /// Conditionally wrap this type in [`Error::Internal`]
     #[allow(clippy::missing_errors_doc)]
     fn ok(self) -> Result<T, Error<E>>;
 }
 
-impl<T, E> IntoOk<T, E> for Option<T> {
+impl<T, E> IntoError<T, E> for Option<T> {
     fn ok(self) -> Result<T, Error<E>> {
         self.ok_or_else(|| Error::Internal(anyhow!("{} is None", type_name::<Self>())))
     }
@@ -130,7 +130,7 @@ impl<T, E> IntoOk<T, E> for Option<T> {
 ///     interaction::InteractionHandle,
 ///     reply::Reply,
 ///     util::{InteractionExt, Prettify},
-///     Bot, Error, IntoOk,
+///     Bot, Error, IntoError,
 /// };
 /// use twilight_gateway::{Event, EventTypeFlags};
 /// use twilight_model::{
