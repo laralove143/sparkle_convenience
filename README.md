@@ -1,6 +1,6 @@
 # Sparkle Convenience
 
-[GitHub](https://github.com/laralove143/sparkle-convenience) 
+[GitHub](https://github.com/laralove143/sparkle-convenience)
 [crates.io](https://crates.io/crates/sparkle-convenience)
 [docs.rs](https://docs.rs/sparkle-convenience/latest)
 
@@ -36,6 +36,11 @@ Provides an enum to conveniently handle errors:
 - The error enum combines user and internal errors
 - Easily check that the bot has the permissions required to run a command, and tell the user when it doesn't
 - Handle internal errors by printing them, writing them to a file and executing a webhook, all optionally
+
+## Usage
+
+The entrypoint of this library is the `Bot` struct, which combines common Twilight data and provides abstraction methods
+on it, the documentation for it also has a full-fledged example of a `/ping` command
 
 ## Looking for Ideas
 

@@ -16,7 +16,7 @@ use crate::{reply::Reply, Bot, Error};
 
 /// Allows convenient interaction-related methods
 ///
-/// Created from [`Bot::handle`]
+/// Created from [`Bot::interaction_handle`]
 #[derive(Clone, Debug)]
 #[allow(clippy::module_name_repetitions)]
 pub struct InteractionHandle<'bot> {

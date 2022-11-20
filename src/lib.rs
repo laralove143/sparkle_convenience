@@ -85,7 +85,7 @@ pub mod util;
 /// errors
 ///
 /// A result with it can be made by using `?` on `Result<T, anyhow::Error>` or
-/// by calling [`IntoOk::ok`] on `Option<T>`
+/// by calling [`IntoError::ok`] on `Option<T>`
 ///
 /// When made from an option, the error message only includes the type info and
 /// isn't very useful without enabling backtrace
