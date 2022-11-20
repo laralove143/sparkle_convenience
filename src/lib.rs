@@ -102,16 +102,16 @@ pub enum Error<T> {
     Internal(#[from] anyhow::Error),
 }
 
-/// Trait implemented on types that can be converted into an [`Error`]
-pub trait IntoError<T, E>: Sized {
-    /// Conditionally wrap this type in [`Error::Internal`]
+/// Trait implemented on types that can be converted into an [`anyhow::Error`]
+pub trait IntoError<T>: Sized {
+    /// Conditionally wrap this type in [`anyhow::Error`]
     #[allow(clippy::missing_errors_doc)]
-    fn ok(self) -> Result<T, Error<E>>;
+    fn ok(self) -> Result<T, anyhow::Error>;
 }
 
-impl<T, E> IntoError<T, E> for Option<T> {
-    fn ok(self) -> Result<T, Error<E>> {
-        self.ok_or_else(|| Error::Internal(anyhow!("{} is None", type_name::<Self>())))
+impl<T> IntoError<T> for Option<T> {
+    fn ok(self) -> Result<T, anyhow::Error> {
+        self.ok_or_else(|| anyhow!("{} is None", type_name::<Self>()))
     }
 }
 
