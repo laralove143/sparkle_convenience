@@ -65,6 +65,7 @@ use thiserror::Error;
 use twilight_gateway::{cluster::Events, Cluster, EventTypeFlags, Intents};
 use twilight_http::Client;
 use twilight_model::{
+    channel::message::Embed,
     guild::Permissions,
     id::{
         marker::{ApplicationMarker, ChannelMarker, WebhookMarker},
@@ -378,21 +379,36 @@ impl Bot {
     /// Log the given message
     ///
     /// - Prints the message
-    /// - If a logging channel was given, executes a webhook with the message as
-    ///   its content
+    /// - If a logging channel was given, executes a webhook with the message in
+    ///   an embed
     /// - If a file path was given, appends the message to it
     ///
     /// If there's an error with logging, also logs the error
     ///
     /// # Panics
     ///
-    /// If the fallback channel message is invalid
+    /// If the message is too long to be in an embed and the fallback message is
+    /// invalid
     pub async fn log(&self, mut message: String) {
         if let Some((webhook_id, webhook_token)) = &self.logging_webhook {
             if let Err(e) = self
                 .http
                 .execute_webhook(*webhook_id, webhook_token)
-                .content(&message)
+                .embeds(&vec![Embed {
+                    description: Some(message.clone()),
+                    author: None,
+                    color: None,
+                    fields: vec![],
+                    footer: None,
+                    image: None,
+                    kind: String::new(),
+                    provider: None,
+                    thumbnail: None,
+                    timestamp: None,
+                    title: None,
+                    url: None,
+                    video: None,
+                }])
                 .unwrap_or_else(|_| {
                     self.http
                         .execute_webhook(*webhook_id, webhook_token)
