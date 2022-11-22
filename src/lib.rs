@@ -200,7 +200,8 @@ impl<T> IntoError<T> for Option<T> {
 ///     }
 ///
 ///     async fn handle_interaction(&self, interaction: Interaction) -> Result<(), anyhow::Error> {
-///         let handle = self.bot.interaction_handle(&interaction, false).await?;
+///         let handle = self.bot.interaction_handle(&interaction);
+///         handle.defer(false).await?;
 ///
 ///         let Some(InteractionData::ApplicationCommand(data)) = &interaction.data else {
 ///             return Ok(());

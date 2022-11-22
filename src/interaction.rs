@@ -33,41 +33,16 @@ pub struct InteractionHandle<'bot> {
 impl Bot {
     /// Return an interaction's handle
     ///
-    /// Also defers the interaction, which is required for the other methods
-    ///
-    /// # Errors
-    ///
-    /// Returns [`twilight_http::error::Error`] if deferring the interaction
-    /// fails
-    pub async fn interaction_handle(
-        &self,
-        interaction: &Interaction,
-        ephemeral: bool,
-    ) -> Result<InteractionHandle<'_>, anyhow::Error> {
-        let defer_response = InteractionResponse {
-            kind: if let InteractionType::MessageComponent | InteractionType::ModalSubmit =
-                interaction.kind
-            {
-                InteractionResponseType::DeferredUpdateMessage
-            } else {
-                InteractionResponseType::DeferredChannelMessageWithSource
-            },
-            data: Some(InteractionResponseData {
-                flags: ephemeral.then_some(MessageFlags::EPHEMERAL),
-                ..Default::default()
-            }),
-        };
-
-        self.interaction_client()
-            .create_response(interaction.id, &interaction.token, &defer_response)
-            .await?;
-
-        Ok(InteractionHandle {
+    /// One of [`InteractionHandle::defer`], [`InteractionHandle::modal`] or
+    /// [`InteractionHandle::autocomplete`] must be called
+    #[must_use]
+    pub fn interaction_handle(&self, interaction: &Interaction) -> InteractionHandle<'_> {
+        InteractionHandle {
             bot: self,
             id: interaction.id,
             token: interaction.token.clone(),
             kind: interaction.kind,
-        })
+        }
     }
 
     /// Return the interaction client for this bot
@@ -98,6 +73,38 @@ impl InteractionHandle<'_> {
         if !missing_permissions.is_empty() {
             return Err(Error::MissingPermissions(missing_permissions));
         }
+
+        Ok(())
+    }
+
+    /// Defer the interaction
+    ///
+    /// This should not be called if [`InteractionHandle::modal`] or
+    /// [`InteractionHandle::autocomplete`] are also called
+    ///
+    /// # Errors
+    ///
+    /// Returns [`twilight_http::error::Error`] if deferring the interaction
+    /// fails
+    pub async fn defer(&self, ephemeral: bool) -> Result<(), anyhow::Error> {
+        let defer_response = InteractionResponse {
+            kind: if let InteractionType::MessageComponent | InteractionType::ModalSubmit =
+                self.kind
+            {
+                InteractionResponseType::DeferredUpdateMessage
+            } else {
+                InteractionResponseType::DeferredChannelMessageWithSource
+            },
+            data: Some(InteractionResponseData {
+                flags: ephemeral.then_some(MessageFlags::EPHEMERAL),
+                ..Default::default()
+            }),
+        };
+
+        self.bot
+            .interaction_client()
+            .create_response(self.id, &self.token, &defer_response)
+            .await?;
 
         Ok(())
     }
