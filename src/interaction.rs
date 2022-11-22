@@ -6,7 +6,10 @@ use twilight_model::{
         command::CommandOptionChoice,
         interaction::{Interaction, InteractionType},
     },
-    channel::message::{component::TextInput, Component, MessageFlags},
+    channel::message::{
+        component::{ActionRow, TextInput},
+        Component, MessageFlags,
+    },
     guild::Permissions,
     http::interaction::{InteractionResponse, InteractionResponseData, InteractionResponseType},
     id::{marker::InteractionMarker, Id},
@@ -196,9 +199,9 @@ impl InteractionHandle<'_> {
                     data: Some(InteractionResponseData {
                         custom_id: Some(custom_id),
                         title: Some(title),
-                        components: Some(
-                            text_inputs.into_iter().map(Component::TextInput).collect(),
-                        ),
+                        components: Some(vec![Component::ActionRow(ActionRow {
+                            components: text_inputs.into_iter().map(Component::TextInput).collect(),
+                        })]),
                         allowed_mentions: None,
                         attachments: None,
                         choices: None,
