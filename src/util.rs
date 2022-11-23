@@ -85,23 +85,23 @@ pub trait InteractionDataExt {
     /// Returns `None` when the interaction type is not
     /// [`InteractionType::ApplicationCommand`] or
     /// [`InteractionType::ApplicationCommandAutocomplete`]
-    fn command_data(self) -> Option<CommandData>;
+    fn command(self) -> Option<CommandData>;
 
     /// Return the [`MessageComponentInteractionData`] of the interaction
     ///
     /// Returns `None` when the interaction type is not
     /// [`InteractionType::MessageComponent`]
-    fn component_data(self) -> Option<MessageComponentInteractionData>;
+    fn component(self) -> Option<MessageComponentInteractionData>;
 
     /// Return the [`ModalInteractionData`] of the interaction
     ///
     /// Returns `None` when the interaction type is not
     /// [`InteractionType::ModalSubmit`]
-    fn modal_data(self) -> Option<ModalInteractionData>;
+    fn modal(self) -> Option<ModalInteractionData>;
 }
 
 impl InteractionDataExt for InteractionData {
-    fn command_data(self) -> Option<CommandData> {
+    fn command(self) -> Option<CommandData> {
         if let Self::ApplicationCommand(data) = self {
             Some(*data)
         } else {
@@ -109,7 +109,7 @@ impl InteractionDataExt for InteractionData {
         }
     }
 
-    fn component_data(self) -> Option<MessageComponentInteractionData> {
+    fn component(self) -> Option<MessageComponentInteractionData> {
         if let Self::MessageComponent(data) = self {
             Some(data)
         } else {
@@ -117,7 +117,7 @@ impl InteractionDataExt for InteractionData {
         }
     }
 
-    fn modal_data(self) -> Option<ModalInteractionData> {
+    fn modal(self) -> Option<ModalInteractionData> {
         if let Self::ModalSubmit(data) = self {
             Some(data)
         } else {
