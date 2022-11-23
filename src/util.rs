@@ -57,25 +57,6 @@ pub trait InteractionExt {
     ///
     /// Should never return `None`
     fn user(&self) -> Option<&User>;
-
-    /// Return the [`CommandData`] of the interaction
-    ///
-    /// Returns `None` when the interaction type is not
-    /// [`InteractionType::ApplicationCommand`] or
-    /// [`InteractionType::ApplicationCommandAutocomplete`]
-    fn command_data(&self) -> Option<&CommandData>;
-
-    /// Return the [`MessageComponentInteractionData`] of the interaction
-    ///
-    /// Returns `None` when the interaction type is not
-    /// [`InteractionType::MessageComponent`]
-    fn component_data(&self) -> Option<&MessageComponentInteractionData>;
-
-    /// Return the [`ModalInteractionData`] of the interaction
-    ///
-    /// Returns `None` when the interaction type is not
-    /// [`InteractionType::ModalSubmit`]
-    fn modal_data(&self) -> Option<&ModalInteractionData>;
 }
 
 impl InteractionExt for Interaction {
@@ -95,25 +76,49 @@ impl InteractionExt for Interaction {
             Some(self.member.as_ref()?.user.as_ref()?)
         }
     }
+}
 
-    fn command_data(&self) -> Option<&CommandData> {
-        if let InteractionData::ApplicationCommand(data) = self.data.as_ref()? {
+/// Utility methods for [`InteractionData`]
+pub trait InteractionDataExt {
+    /// Return the [`CommandData`] of the interaction
+    ///
+    /// Returns `None` when the interaction type is not
+    /// [`InteractionType::ApplicationCommand`] or
+    /// [`InteractionType::ApplicationCommandAutocomplete`]
+    fn command_data(self) -> Option<CommandData>;
+
+    /// Return the [`MessageComponentInteractionData`] of the interaction
+    ///
+    /// Returns `None` when the interaction type is not
+    /// [`InteractionType::MessageComponent`]
+    fn component_data(self) -> Option<MessageComponentInteractionData>;
+
+    /// Return the [`ModalInteractionData`] of the interaction
+    ///
+    /// Returns `None` when the interaction type is not
+    /// [`InteractionType::ModalSubmit`]
+    fn modal_data(self) -> Option<ModalInteractionData>;
+}
+
+impl InteractionDataExt for InteractionData {
+    fn command_data(self) -> Option<CommandData> {
+        if let Self::ApplicationCommand(data) = self {
+            Some(*data)
+        } else {
+            None
+        }
+    }
+
+    fn component_data(self) -> Option<MessageComponentInteractionData> {
+        if let Self::MessageComponent(data) = self {
             Some(data)
         } else {
             None
         }
     }
 
-    fn component_data(&self) -> Option<&MessageComponentInteractionData> {
-        if let InteractionData::MessageComponent(data) = self.data.as_ref()? {
-            Some(data)
-        } else {
-            None
-        }
-    }
-
-    fn modal_data(&self) -> Option<&ModalInteractionData> {
-        if let InteractionData::ModalSubmit(data) = self.data.as_ref()? {
+    fn modal_data(self) -> Option<ModalInteractionData> {
+        if let Self::ModalSubmit(data) = self {
             Some(data)
         } else {
             None
