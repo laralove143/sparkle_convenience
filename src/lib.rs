@@ -126,11 +126,12 @@ impl<T> IntoError<T> for Option<T> {
 /// ```no_run
 /// use std::{ops::Deref, sync::Arc};
 ///
+/// use anyhow::anyhow;
 /// use futures::stream::StreamExt;
 /// use sparkle_convenience::{
 ///     interaction::InteractionHandle,
 ///     reply::Reply,
-///     util::{InteractionExt, Prettify},
+///     util::{InteractionDataExt, InteractionExt, Prettify},
 ///     Bot, Error, IntoError,
 /// };
 /// use twilight_gateway::{Event, EventTypeFlags};
@@ -140,52 +141,32 @@ impl<T> IntoError<T> for Option<T> {
 ///     guild::Permissions,
 /// };
 ///
-/// #[derive(Clone, Copy)]
-/// enum PingCommandError {
+/// #[derive(Debug, Clone, Copy, thiserror::Error)]
+/// enum UserError {
+///     #[error("Your username is scaring me :(")]
 ///     BotScared,
-/// }
-///
-/// impl From<PingCommandError> for Reply {
-///     fn from(err: PingCommandError) -> Self {
-///         match err {
-///             PingCommandError::BotScared => {
-///                 Reply::new().content("Your username is scaring me :(".to_owned())
-///             }
-///         }
-///     }
-/// }
-///
-/// struct PingCommand<'bot> {
-///     handle: InteractionHandle<'bot>,
-///     interaction: Interaction,
-///     custom: (), // For example, the command options could be here
-/// }
-///
-/// impl PingCommand<'_> {
-///     fn check_bot_scared(&self) -> Result<(), Error<PingCommandError>> {
-///         if self.interaction.user().ok()?.name.contains("boo") {
-///             return Err(Error::User(PingCommandError::BotScared));
-///         }
-///
-///         Ok(())
-///     }
-///
-///     async fn run(&self) -> Result<(), Error<PingCommandError>> {
-///         self.handle
-///             .check_permissions(Permissions::ADMINISTRATOR, self.interaction.app_permissions)?;
-///         self.check_bot_scared()?;
-///
-///         self.handle
-///             .reply(Reply::new().content("Pong!".to_owned()))
-///             .await?;
-///
-///         Ok(())
-///     }
 /// }
 ///
 /// struct Context {
 ///     bot: Bot,
 ///     custom: (), // For example, the database pool could be here
+/// }
+///
+/// async fn run_ping_pong(
+///     handle: &mut InteractionHandle<'_>,
+///     interaction: Interaction,
+/// ) -> Result<(), Error<UserError>> {
+///     handle.check_permissions(Permissions::ADMINISTRATOR)?;
+///
+///     if interaction.user().ok()?.name.contains("boo") {
+///         return Err(Error::User(UserError::BotScared));
+///     }
+///
+///     handle
+///         .reply(Reply::new().ephemeral().content("Pong!".to_owned()))
+///         .await?;
+///
+///     Ok(())
 /// }
 ///
 /// impl Context {
@@ -201,37 +182,25 @@ impl<T> IntoError<T> for Option<T> {
 ///     }
 ///
 ///     async fn handle_interaction(&self, interaction: Interaction) -> Result<(), anyhow::Error> {
-///         let handle = self.bot.interaction_handle(&interaction);
-///         handle.defer(false).await?;
+///         let mut handle = self.bot.interaction_handle(&interaction);
 ///
-///         let Some(InteractionData::ApplicationCommand(data)) = &interaction.data else {
-///             return Ok(());
-///         };
-///
-///         if let Err(err) = match data.name.as_ref() {
-///             "ping" => {
-///                 PingCommand {
-///                     handle: handle.clone(),
-///                     interaction,
-///                     custom: (),
-///                 }
-///                 .run()
-///                 .await
-///             }
-///             _ => return Ok(()),
+///         if let Err(err) = match interaction.name().ok()? {
+///             "ping" => run_ping_pong(&mut handle, interaction).await,
+///             name => return Err(anyhow!("Unknown command: {name}")),
 ///         } {
-///             let reply = match &err {
-///                 Error::User(err) => (*err).into(),
-///                 Error::MissingPermissions(permissions) => Reply::new().content(format!(
+///             let content = match &err {
+///                 Error::User(err) => err.to_string(),
+///                 Error::MissingPermissions(permissions) => format!(
 ///                     "Please give me these permissions first:\n{}",
 ///                     permissions.prettify()
-///                 )),
-///                 Error::Internal(err) => Reply::new().content(
-///                     "Something went wrong... The error has been reported to the developer"
-///                         .to_owned(),
 ///                 ),
+///                 Error::Internal(err) => "Something went wrong... The error has been reported \
+///                                          to the developer"
+///                     .to_owned(),
 ///             };
-///             handle.reply(reply).await?;
+///             handle
+///                 .reply(Reply::new().ephemeral().content(content))
+///                 .await?;
 ///
 ///             if let Error::Internal(err) = err {
 ///                 return Err(err);
