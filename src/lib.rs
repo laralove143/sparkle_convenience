@@ -68,9 +68,11 @@ use twilight_model::{
     channel::message::Embed,
     guild::Permissions,
     id::{
-        marker::{ApplicationMarker, ChannelMarker, WebhookMarker},
+        marker::{ChannelMarker, WebhookMarker},
         Id,
     },
+    oauth::Application,
+    user::CurrentUser,
 };
 
 /// Convenient interaction handling
@@ -250,8 +252,10 @@ pub struct Bot {
     pub http: Client,
     /// Twilight's gateway cluster
     pub cluster: Arc<Cluster>,
-    /// The application ID of the bot
-    pub application_id: Id<ApplicationMarker>,
+    /// The application info of the bot
+    pub application: Application,
+    /// The user info of the bot
+    pub user: CurrentUser,
     /// The webhook to log errors using
     pub logging_webhook: Option<(Id<WebhookMarker>, String)>,
     /// The file to append errors to
@@ -294,13 +298,15 @@ impl Bot {
         });
 
         let http = Client::new(token.clone());
-        let application_id = http.current_user_application().await?.model().await?.id;
+        let application = http.current_user_application().await?.model().await?;
+        let user = http.current_user().await?.model().await?;
 
         Ok((
             Self {
                 http,
                 cluster: cluster_arc,
-                application_id,
+                application,
+                user,
                 logging_webhook: None,
                 logging_file_path: None,
             },

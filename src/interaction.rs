@@ -51,7 +51,7 @@ impl Bot {
     /// Return the interaction client for this bot
     #[must_use]
     pub const fn interaction_client(&self) -> InteractionClient<'_> {
-        self.http.interaction(self.application_id)
+        self.http.interaction(self.application.id)
     }
 }
 
