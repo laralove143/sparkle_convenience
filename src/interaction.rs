@@ -12,7 +12,7 @@ use twilight_model::{
     id::{marker::InteractionMarker, Id},
 };
 
-use crate::{reply::Reply, Bot, Error};
+use crate::{reply::Reply, util::InteractionExt, Bot, Error};
 
 /// Allows convenient interaction-related methods
 ///
@@ -20,8 +20,10 @@ use crate::{reply::Reply, Bot, Error};
 #[derive(Debug)]
 #[allow(clippy::module_name_repetitions)]
 pub struct InteractionHandle<'bot> {
-    /// The context to use with this command
-    pub bot: &'bot Bot,
+    /// The name or custom ID of the command
+    pub name: Option<String>,
+    /// The bot data to make requests with
+    bot: &'bot Bot,
     /// The interaction's ID
     id: Id<InteractionMarker>,
     /// The interaction's token
@@ -37,6 +39,7 @@ impl Bot {
     #[must_use]
     pub fn interaction_handle(&self, interaction: &Interaction) -> InteractionHandle<'_> {
         InteractionHandle {
+            name: interaction.name().map(ToOwned::to_owned),
             bot: self,
             id: interaction.id,
             token: interaction.token.clone(),
