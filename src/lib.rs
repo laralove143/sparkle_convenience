@@ -152,21 +152,26 @@ impl<T> IntoError<T> for Option<T> {
 ///     custom: (), // For example, the database pool could be here
 /// }
 ///
-/// async fn run_ping_pong(
-///     handle: &mut InteractionHandle<'_>,
+/// struct InteractionContext<'ctx, 'handle> {
+///     handle: &'ctx mut InteractionHandle<'handle>,
+///     ctx: &'ctx Context,
 ///     interaction: Interaction,
-/// ) -> Result<(), Error<UserError>> {
-///     handle.check_permissions(Permissions::ADMINISTRATOR)?;
+/// }
 ///
-///     if interaction.user().ok()?.name.contains("boo") {
-///         return Err(Error::User(UserError::BotScared));
+/// impl InteractionContext<'_, '_> {
+///     async fn run_ping_pong(self) -> Result<(), Error<UserError>> {
+///         self.handle.check_permissions(Permissions::ADMINISTRATOR)?;
+///
+///         if self.interaction.user().ok()?.name.contains("boo") {
+///             return Err(Error::User(UserError::BotScared));
+///         }
+///
+///         self.handle
+///             .reply(Reply::new().ephemeral().content("Pong!".to_owned()))
+///             .await?;
+///
+///         Ok(())
 ///     }
-///
-///     handle
-///         .reply(Reply::new().ephemeral().content("Pong!".to_owned()))
-///         .await?;
-///
-///     Ok(())
 /// }
 ///
 /// impl Context {
@@ -183,10 +188,15 @@ impl<T> IntoError<T> for Option<T> {
 ///
 ///     async fn handle_interaction(&self, interaction: Interaction) -> Result<(), anyhow::Error> {
 ///         let mut handle = self.bot.interaction_handle(&interaction);
+///         let ctx = InteractionContext {
+///             handle: &mut handle,
+///             ctx: &self,
+///             interaction,
+///         };
 ///
-///         if let Err(err) = match interaction.name().ok()? {
-///             "ping" => run_ping_pong(&mut handle, interaction).await,
-///             name => return Err(anyhow!("Unknown command: {name}")),
+///         if let Err(err) = match ctx.handle.name.as_deref().ok()? {
+///             "ping" => ctx.run_ping_pong().await,
+///             name => Err(Error::Internal(anyhow!("Unknown command: {name}"))),
 ///         } {
 ///             let content = match &err {
 ///                 Error::User(err) => err.to_string(),
