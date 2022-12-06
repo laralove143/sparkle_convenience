@@ -1,6 +1,8 @@
 use std::fmt::Debug;
 
+use async_trait::async_trait;
 use titlecase::titlecase;
+use twilight_http::request::channel::message::CreateMessage;
 #[cfg(doc)]
 use twilight_model::application::interaction::InteractionType;
 use twilight_model::{
@@ -9,6 +11,7 @@ use twilight_model::{
         modal::ModalInteractionData, Interaction, InteractionData,
     },
     guild::Permissions,
+    id::{marker::UserMarker, Id},
     user::User,
 };
 
@@ -123,5 +126,37 @@ impl InteractionDataExt for InteractionData {
         } else {
             None
         }
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+/// An error returned when sending or deserializing a request
+pub enum HttpError {
+    /// Failed to make a request
+    #[error("{0}")]
+    Http(#[from] twilight_http::Error),
+    /// Failed to deserialize the request
+    #[error("{0}")]
+    Deserialize(#[from] twilight_http::response::DeserializeBodyError),
+}
+
+/// Utility methods for [`twilight_http::Client`]
+#[async_trait]
+pub trait HttpExt {
+    /// Send a private message to a user
+    async fn dm_user(&self, user_id: Id<UserMarker>) -> Result<CreateMessage<'_>, HttpError>;
+}
+
+#[async_trait]
+impl HttpExt for twilight_http::Client {
+    async fn dm_user(&self, user_id: Id<UserMarker>) -> Result<CreateMessage<'_>, HttpError> {
+        let channel_id = self
+            .create_private_channel(user_id)
+            .await?
+            .model()
+            .await?
+            .id;
+
+        Ok(self.create_message(channel_id))
     }
 }

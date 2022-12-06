@@ -1,6 +1,6 @@
 [package]
 name = "sparkle-convenience"
-version = "0.14.13"
+version = "0.14.14"
 authors = ["lara <laralove143@icloud.com>"]
 edition = "2021"
 description = "A wrapper over Twilight designed to make it more convenient to use"
@@ -13,6 +13,7 @@ categories = ["api-bindings", "asynchronous", "caching"]
 tokio = { version = "1.21", features = ["rt-multi-thread"] }
 thiserror = "1.0"
 anyhow = "1.0"
+async-trait = "0.1"
 titlecase = "2.2"
 twilight-http = "0.14"
 twilight-gateway = "0.14"
