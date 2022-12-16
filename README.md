@@ -20,27 +20,49 @@ relying on callbacks and mostly following Twilight patterns while making your li
 - Want something more low-level
 - Are willing to give up the pros of this crate for these
 
-## Interaction Handling
+## Example
 
-Provides methods to handle interactions conveniently:
+There's a ping-pong command example in the docs for `Bot`, showcasing most of this crate's functionality
+
+## Features
+
+These are only the most commonly used features of the crate, other features can be found in the documentation
+
+### Interactions
+
+#### Responding
 
 - Do all interaction handling without rewriting the ID and token using a handle
-- Create a followup response with a reply struct using the builder-pattern, which can be reused easily
+- Create a reply or followup response with a reply struct using the builder-pattern, which can be reused easily
 - Defer an interaction with one method
 - Create an autocomplete or modal response with minimal boilerplate
 
-## Error Handling
+#### Extraction
 
-Provides an enum to conveniently handle errors:
+- Extract the user of an interaction whether it's in DMs or not
+- Extract the name of an interaction
+- Extract the command data in an interaction with a method based on the interaction kind
 
-- The error enum combines user and internal errors
+### Errors
+
+#### User Errors
+
 - Easily check that the bot has the permissions required to run a command, and tell the user when it doesn't
-- Handle internal errors by printing them, writing them to a file and executing a webhook, all optionally
 
-## Usage
+#### Internal Errors
 
-The entrypoint of this library is the `Bot` struct, which combines common Twilight data and provides abstraction methods
-on it, the documentation for it also has a full-fledged example of a `/ping` command
+- Handle internal errors by printing them, writing them to a file and executing a webhook, all configurable
+- All errors that should be ignored aren't emitted so that you don't flood your logs with errors
+- Convert an option to an error with just `err.ok()`
+
+### Initialization
+
+- Create a `Bot` struct with just a token, intents and event types
+- The `Bot` struct combines common Twilight data and provides abstraction methods on it
+
+### HTTP
+
+- DM a user with minimal boilerplate
 
 ## Looking for Ideas
 
@@ -50,5 +72,4 @@ issue for anything that falls under this category!
 ## Caching
 
 HTTP-fallback is not a good idea for many reasons, and there isn't much this crate could provide besides that, but
-caching everything possible will give you a peace of mind. If memory usage is a concern, consider
-using [Sparkle Cache](https://github.com/laralove143/sparkle-cache)
+caching everything possible will give you a peace of mind

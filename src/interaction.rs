@@ -12,16 +12,17 @@ use twilight_model::{
     id::{marker::InteractionMarker, Id},
 };
 
-use crate::{reply::Reply, util::InteractionExt, Bot, Error};
+use crate::{error::UserError, reply::Reply, Bot};
+
+/// Extracting data from interactions
+pub mod extract;
 
 /// Allows convenient interaction-related methods
 ///
 /// Created from [`Bot::interaction_handle`]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[allow(clippy::module_name_repetitions)]
 pub struct InteractionHandle<'bot> {
-    /// The name or custom ID of the command
-    pub name: Option<String>,
     /// The bot data to make requests with
     bot: &'bot Bot,
     /// The interaction's ID
@@ -30,8 +31,6 @@ pub struct InteractionHandle<'bot> {
     token: String,
     /// The bot's permissions
     app_permissions: Permissions,
-    /// Whether the interaction was previously responded to
-    acked: bool,
 }
 
 impl Bot {
@@ -39,12 +38,10 @@ impl Bot {
     #[must_use]
     pub fn interaction_handle(&self, interaction: &Interaction) -> InteractionHandle<'_> {
         InteractionHandle {
-            name: interaction.name().map(ToOwned::to_owned),
             bot: self,
             id: interaction.id,
             token: interaction.token.clone(),
             app_permissions: interaction.app_permissions.unwrap_or(Permissions::all()),
-            acked: false,
         }
     }
 
@@ -63,13 +60,13 @@ impl InteractionHandle<'_> {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::MissingPermissions`] if the bot doesn't have the
+    /// Returns [`UserError::MissingPermissions`] if the bot doesn't have the
     /// required permissions, the wrapped permissions are the permissions
     /// the bot is missing
-    pub fn check_permissions<E>(&self, required_permissions: Permissions) -> Result<(), Error<E>> {
+    pub fn check_permissions(&self, required_permissions: Permissions) -> Result<(), UserError> {
         let missing_permissions = required_permissions - self.app_permissions;
         if !missing_permissions.is_empty() {
-            return Err(Error::MissingPermissions(missing_permissions));
+            return Err(UserError::MissingPermissions(Some(missing_permissions)));
         }
 
         Ok(())
@@ -77,7 +74,7 @@ impl InteractionHandle<'_> {
 
     /// Defer the interaction
     ///
-    /// No other response is allowed before this
+    /// Make sure you haven't sent any response before this
     ///
     /// The `ephemeral` parameter only affects the first [`Self::reply`]
     ///
@@ -85,7 +82,7 @@ impl InteractionHandle<'_> {
     ///
     /// Returns [`twilight_http::error::Error`] if deferring the interaction
     /// fails
-    pub async fn defer(&mut self, ephemeral: bool) -> Result<(), anyhow::Error> {
+    pub async fn defer(&self, ephemeral: bool) -> Result<(), anyhow::Error> {
         let defer_response = InteractionResponse {
             kind: InteractionResponseType::DeferredChannelMessageWithSource,
             data: Some(InteractionResponseData {
@@ -99,12 +96,16 @@ impl InteractionHandle<'_> {
             .create_response(self.id, &self.token, &defer_response)
             .await?;
 
-        self.acked = true;
-
         Ok(())
     }
 
     /// Reply to this command
+    ///
+    /// Make sure you haven't sent any response before this
+    ///
+    /// Discord gives 3 seconds of deadline to respond to an interaction, if the
+    /// reply might take longer, consider using [`Self::defer`] then
+    /// [`Self::followup`]
     ///
     /// # Errors
     ///
@@ -113,51 +114,61 @@ impl InteractionHandle<'_> {
     ///
     /// Returns [`twilight_http::error::Error`] if creating the followup
     /// response fails
-    pub async fn reply(&mut self, reply: Reply) -> Result<(), anyhow::Error> {
+    pub async fn reply(&self, reply: Reply) -> Result<(), anyhow::Error> {
+        self.bot
+            .interaction_client()
+            .create_response(
+                self.id,
+                &self.token,
+                &InteractionResponse {
+                    kind: InteractionResponseType::ChannelMessageWithSource,
+                    data: Some(InteractionResponseData {
+                        content: Some(reply.content),
+                        embeds: Some(reply.embeds),
+                        components: Some(reply.components),
+                        attachments: Some(reply.attachments),
+                        flags: Some(reply.flags),
+                        tts: Some(reply.tts),
+                        allowed_mentions: reply.allowed_mentions.flatten(),
+                        choices: None,
+                        custom_id: None,
+                        title: None,
+                    }),
+                },
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    /// Update the command's response
+    ///
+    /// Make sure you have called [`Self::defer`] or [`Self::reply`] first
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the reply is invalid (Refer to
+    /// [`twilight_http::request::application::interaction::CreateFollowup`])
+    ///
+    /// Returns [`twilight_http::error::Error`] if creating the response fails
+    pub async fn followup(&self, reply: Reply) -> Result<(), anyhow::Error> {
         let client = self.bot.interaction_client();
+        let mut followup = client.create_followup(&self.token);
 
-        if self.acked {
-            let mut followup = client.create_followup(&self.token);
-
-            if !reply.content.is_empty() {
-                followup = followup.content(&reply.content)?;
-            }
-            if let Some(allowed_mentions) = &reply.allowed_mentions {
-                followup = followup.allowed_mentions(allowed_mentions.as_ref());
-            }
-
-            followup
-                .embeds(&reply.embeds)?
-                .components(&reply.components)?
-                .attachments(&reply.attachments)?
-                .flags(reply.flags)
-                .tts(reply.tts)
-                .await?;
-        } else {
-            client
-                .create_response(
-                    self.id,
-                    &self.token,
-                    &InteractionResponse {
-                        kind: InteractionResponseType::ChannelMessageWithSource,
-                        data: Some(InteractionResponseData {
-                            content: Some(reply.content),
-                            embeds: Some(reply.embeds),
-                            components: Some(reply.components),
-                            attachments: Some(reply.attachments),
-                            flags: Some(reply.flags),
-                            tts: Some(reply.tts),
-                            allowed_mentions: reply.allowed_mentions.flatten(),
-                            choices: None,
-                            custom_id: None,
-                            title: None,
-                        }),
-                    },
-                )
-                .await?;
+        if !reply.content.is_empty() {
+            followup = followup.content(&reply.content)?;
+        }
+        if let Some(allowed_mentions) = &reply.allowed_mentions {
+            followup = followup.allowed_mentions(allowed_mentions.as_ref());
         }
 
-        self.acked = true;
+        followup
+            .embeds(&reply.embeds)?
+            .components(&reply.components)?
+            .attachments(&reply.attachments)?
+            .flags(reply.flags)
+            .tts(reply.tts)
+            .await?;
 
         Ok(())
     }

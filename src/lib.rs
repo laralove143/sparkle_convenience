@@ -50,73 +50,28 @@
 )]
 #![doc = include_str!("../README.md")]
 
-use std::{
-    any::type_name,
-    fmt::{Debug, Write},
-    fs::File,
-    io::Write as _,
-    sync::Arc,
-};
+use std::{fmt::Debug, sync::Arc};
 
-use anyhow::anyhow;
 #[cfg(test)]
 use futures as _;
-use thiserror::Error;
 use twilight_gateway::{cluster::Events, Cluster, EventTypeFlags, Intents};
 use twilight_http::Client;
 use twilight_model::{
-    channel::message::Embed,
-    guild::Permissions,
-    id::{
-        marker::{ChannelMarker, WebhookMarker},
-        Id,
-    },
+    id::{marker::WebhookMarker, Id},
     oauth::Application,
     user::CurrentUser,
 };
 
+/// Convenient error handling
+pub mod error;
+/// Making HTTP requests conveniently
+pub mod http;
 /// Convenient interaction handling
 pub mod interaction;
-/// The reply struct definition
+/// Formatting types into user-readable pretty strings
+pub mod prettify;
+/// The [`reply::Reply`] struct
 pub mod reply;
-/// Various utility functions
-pub mod util;
-
-/// An error enum combining user-related errors with internal errors
-///
-/// The `Display` implementation on this should only be used with internal
-/// errors
-///
-/// A result with it can be made by using `?` on `Result<T, anyhow::Error>` or
-/// by calling [`IntoError::ok`] on `Option<T>`
-///
-/// When made from an option, the error message only includes the type info and
-/// isn't very useful without enabling backtrace
-#[derive(Debug, Error)]
-pub enum Error<T> {
-    /// There was a user-related error which should be shown to the user
-    #[error("a user error has been handled like an internal error")]
-    User(T),
-    /// The bot is missing some required permissions
-    #[error("a user error has been handled like an internal error")]
-    MissingPermissions(Permissions),
-    /// There was an internal error which should be reported to the developer
-    #[error("{0}")]
-    Internal(#[from] anyhow::Error),
-}
-
-/// Trait implemented on types that can be converted into an [`anyhow::Error`]
-pub trait IntoError<T>: Sized {
-    /// Conditionally wrap this type in [`anyhow::Error`]
-    #[allow(clippy::missing_errors_doc)]
-    fn ok(self) -> Result<T, anyhow::Error>;
-}
-
-impl<T> IntoError<T> for Option<T> {
-    fn ok(self) -> Result<T, anyhow::Error> {
-        self.ok_or_else(|| anyhow!("{} is None", type_name::<Self>()))
-    }
-}
 
 /// All data required to make a bot run
 ///
@@ -126,15 +81,21 @@ impl<T> IntoError<T> for Option<T> {
 /// this crate
 ///
 /// ```no_run
-/// use std::{ops::Deref, sync::Arc};
+/// use std::{
+///     error::Error,
+///     fmt::{Display, Formatter, Write},
+///     ops::Deref,
+///     sync::Arc,
+/// };
 ///
 /// use anyhow::anyhow;
 /// use futures::stream::StreamExt;
 /// use sparkle_convenience::{
-///     interaction::InteractionHandle,
+///     error::{conversion::IntoError, ErrorExt, UserError},
+///     interaction::{extract::InteractionExt, InteractionHandle},
+///     prettify::Prettify,
 ///     reply::Reply,
-///     util::{InteractionDataExt, InteractionExt, Prettify},
-///     Bot, Error, IntoError,
+///     Bot,
 /// };
 /// use twilight_gateway::{Event, EventTypeFlags};
 /// use twilight_model::{
@@ -143,33 +104,41 @@ impl<T> IntoError<T> for Option<T> {
 ///     guild::Permissions,
 /// };
 ///
-/// #[derive(Debug, Clone, Copy, thiserror::Error)]
-/// enum UserError {
-///     #[error("Your username is scaring me :(")]
+/// #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// enum CustomError {
 ///     BotScared,
 /// }
+///
+/// impl Display for CustomError {
+///     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+///         use std::fmt::{Formatter, Write};
+///         f.write_str("a user error has been handled like an internal error")
+///     }
+/// }
+///
+/// impl Error for CustomError {}
 ///
 /// struct Context {
 ///     bot: Bot,
 ///     custom: (), // For example, the database pool could be here
 /// }
 ///
-/// struct InteractionContext<'ctx, 'handle> {
-///     handle: &'ctx mut InteractionHandle<'handle>,
+/// struct InteractionContext<'ctx> {
+///     handle: InteractionHandle<'ctx>,
 ///     ctx: &'ctx Context,
 ///     interaction: Interaction,
 /// }
 ///
-/// impl InteractionContext<'_, '_> {
-///     async fn run_ping_pong(self) -> Result<(), Error<UserError>> {
+/// impl InteractionContext<'_> {
+///     async fn run_ping_pong(self) -> Result<(), anyhow::Error> {
 ///         self.handle.check_permissions(Permissions::ADMINISTRATOR)?;
 ///
 ///         if self.interaction.user().ok()?.name.contains("boo") {
-///             return Err(Error::User(UserError::BotScared));
+///             return Err(CustomError::BotScared.into());
 ///         }
 ///
 ///         self.handle
-///             .reply(Reply::new().ephemeral().content("Pong!".to_owned()))
+///             .followup(Reply::new().ephemeral().content("Pong!".to_owned()))
 ///             .await?;
 ///
 ///         Ok(())
@@ -189,32 +158,25 @@ impl<T> IntoError<T> for Option<T> {
 ///     }
 ///
 ///     async fn handle_interaction(&self, interaction: Interaction) -> Result<(), anyhow::Error> {
-///         let mut handle = self.bot.interaction_handle(&interaction);
+///         let handle = self.bot.interaction_handle(&interaction);
+///         handle.defer(true).await?;
 ///         let ctx = InteractionContext {
-///             handle: &mut handle,
+///             handle: handle.clone(),
 ///             ctx: &self,
 ///             interaction,
 ///         };
 ///
-///         if let Err(err) = match ctx.handle.name.as_deref().ok()? {
+///         if let Err(err) = match ctx.interaction.name().ok()? {
 ///             "ping" => ctx.run_ping_pong().await,
-///             name => Err(Error::Internal(anyhow!("Unknown command: {name}"))),
+///             name => Err(anyhow!("Unknown command: {name}")),
 ///         } {
-///             let content = match &err {
-///                 Error::User(err) => err.to_string(),
-///                 Error::MissingPermissions(permissions) => format!(
-///                     "Please give me these permissions first:\n{}",
-///                     permissions.prettify()
-///                 ),
-///                 Error::Internal(err) => "Something went wrong... The error has been reported \
-///                                          to the developer"
-///                     .to_owned(),
-///             };
-///             handle
-///                 .reply(Reply::new().ephemeral().content(content))
-///                 .await?;
+///             if err.ignore() {
+///                 return Ok(());
+///             }
 ///
-///             if let Error::Internal(err) = err {
+///             handle.followup(err_reply(&err)?).await?;
+///
+///             if let Some(err) = err.internal::<CustomError>() {
 ///                 return Err(err);
 ///             }
 ///         }
@@ -226,7 +188,7 @@ impl<T> IntoError<T> for Option<T> {
 /// #[tokio::main]
 /// async fn main() -> Result<(), anyhow::Error> {
 ///     let (bot, mut events) = Bot::new(
-///         "totally legit token".to_owned(),
+///         "totally real token".to_owned(),
 ///         Intents::empty(),
 ///         EventTypeFlags::all(),
 ///     )
@@ -243,6 +205,31 @@ impl<T> IntoError<T> for Option<T> {
 ///     }
 ///
 ///     Ok(())
+/// }
+///
+/// // This can be a trait implemented on the error if you prefer
+/// fn err_reply(err: &anyhow::Error) -> Result<Reply, anyhow::Error> {
+///     let message = if let Some(user_err) = err.user() {
+///         match user_err {
+///             UserError::MissingPermissions(permissions) => format!(
+///                 "I need these permissions first:\n{}",
+///                 // Make sure to use ErrorExt::user_with_permissions when required
+///                 permissions.ok()?.prettify()
+///             ),
+///             // Make sure not to try to handle the error when it should be ignored
+///             UserError::Ignore => {
+///                 return Err(anyhow!("tried to handle an error that should be ignored"))
+///             }
+///         }
+///     } else if let Some(custom_err) = err.downcast_ref::<CustomError>() {
+///         match custom_err {
+///             CustomError::BotScared => "Please register first".to_owned(),
+///         }
+///     } else {
+///         "Something went wrong, the error has been reported to the developer".to_owned()
+///     };
+///
+///     Ok(Reply::new().ephemeral().content(message))
 /// }
 /// ```
 #[derive(Debug)]
@@ -312,111 +299,5 @@ impl Bot {
             },
             events,
         ))
-    }
-
-    /// Set the channel to log messages to
-    ///
-    /// Uses the first webhook in the channel that's made by the bot or creates
-    /// a new one if none exist
-    ///
-    /// # Errors
-    ///
-    /// Returns [`twilight_http::error::Error`] or
-    /// [`twilight_http::response::DeserializeBodyError`] if getting or creating
-    /// the logging webhook fails
-    ///
-    /// # Panics
-    ///
-    /// if the webhook that was just created doesn't contain a token
-    pub async fn set_logging_channel(
-        &mut self,
-        channel_id: Id<ChannelMarker>,
-    ) -> Result<(), anyhow::Error> {
-        let webhook = if let Some(webhook) = self
-            .http
-            .channel_webhooks(channel_id)
-            .await?
-            .models()
-            .await?
-            .into_iter()
-            .find(|webhook| webhook.token.is_some())
-        {
-            webhook
-        } else {
-            self.http
-                .create_webhook(channel_id, "Bot Error Logger")?
-                .await?
-                .model()
-                .await?
-        };
-
-        self.logging_webhook = Some((webhook.id, webhook.token.unwrap()));
-
-        Ok(())
-    }
-
-    /// Set the file to log messages to
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn set_logging_file(&mut self, logging_file_path: String) {
-        self.logging_file_path = Some(logging_file_path);
-    }
-
-    /// Log the given message
-    ///
-    /// - Prints the message
-    /// - If a logging channel was given, executes a webhook with the message in
-    ///   an embed
-    /// - If a file path was given, appends the message to it
-    ///
-    /// If there's an error with logging, also logs the error
-    ///
-    /// # Panics
-    ///
-    /// If the message is too long to be in an embed and the fallback message is
-    /// invalid
-    pub async fn log(&self, mut message: String) {
-        if let Some((webhook_id, webhook_token)) = &self.logging_webhook {
-            if let Err(e) = self
-                .http
-                .execute_webhook(*webhook_id, webhook_token)
-                .embeds(&vec![Embed {
-                    description: Some(message.clone()),
-                    author: None,
-                    color: None,
-                    fields: vec![],
-                    footer: None,
-                    image: None,
-                    kind: String::new(),
-                    provider: None,
-                    thumbnail: None,
-                    timestamp: None,
-                    title: None,
-                    url: None,
-                    video: None,
-                }])
-                .unwrap_or_else(|_| {
-                    self.http
-                        .execute_webhook(*webhook_id, webhook_token)
-                        .content("There was a message to log but it's too long to send here")
-                        .unwrap()
-                })
-                .await
-            {
-                let _ = writeln!(message, "Failed to log the message in the channel: {e}");
-            }
-        }
-
-        if let Some(path) = &self.logging_file_path {
-            if let Err(e) = File::options()
-                .create(true)
-                .append(true)
-                .open(path)
-                .and_then(|mut file| writeln!(file, "{message}"))
-            {
-                let _ = writeln!(message, "Failed to log the message to file: {e}");
-            }
-        }
-
-        println!("{message}");
     }
 }
