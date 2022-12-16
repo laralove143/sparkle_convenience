@@ -111,7 +111,6 @@ pub mod reply;
 ///
 /// impl Display for CustomError {
 ///     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-///         use std::fmt::{Formatter, Write};
 ///         f.write_str("a user error has been handled like an internal error")
 ///     }
 /// }

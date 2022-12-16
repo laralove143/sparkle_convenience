@@ -1,6 +1,6 @@
 [package]
 name = "sparkle-convenience"
-version = "0.14.17"
+version = "0.14.18"
 authors = ["lara <laralove143@icloud.com>"]
 edition = "2021"
 description = "A wrapper over Twilight designed to make it more convenient to use"
@@ -17,6 +17,7 @@ titlecase = "2.2"
 twilight-http = "0.14"
 twilight-gateway = "0.14"
 twilight-model = "0.14"
+twilight-validate = "0.14"
 
 [dev-dependencies]
 tokio = { version = "1.21", features = ["macros"] }

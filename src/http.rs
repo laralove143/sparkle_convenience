@@ -5,6 +5,8 @@ use twilight_model::id::{marker::UserMarker, Id};
 
 /// Sending messages conveniently
 pub mod message;
+/// Executing webhooks conveniently
+pub mod webhook;
 
 /// Convenience methods for [`twilight_http::Client`]
 #[allow(clippy::module_name_repetitions)]

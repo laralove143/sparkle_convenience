@@ -28,12 +28,18 @@ There's a ping-pong command example in the docs for `Bot`, showcasing most of th
 
 These are only the most commonly used features of the crate, other features can be found in the documentation
 
+### Sending Message-likes
+
+- Provides a reply struct using the builder-pattern
+- Can be used to reply to interactions,
+- Create messages with
+- Or execute webhooks with
+
 ### Interactions
 
 #### Responding
 
 - Do all interaction handling without rewriting the ID and token using a handle
-- Create a reply or followup response with a reply struct using the builder-pattern, which can be reused easily
 - Defer an interaction with one method
 - Create an autocomplete or modal response with minimal boilerplate
 
