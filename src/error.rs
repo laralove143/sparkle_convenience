@@ -138,7 +138,7 @@ pub enum UserError {
     ///
     /// `None` when the error occurred outside of
     /// [`InteractionHandle::check_permissions`] and [`ErrorExt::user`] was
-    /// called instead of [`ErrorExt::user_with_permissions`]
+    /// called instead of [`ErrorExt::with_permissions`]
     MissingPermissions(Option<Permissions>),
     /// The error is safe to ignore
     ///
@@ -164,13 +164,21 @@ pub trait ErrorExt: Sized {
     /// Refer to the example on [`Bot`] for the error handling flow
     fn user(&self) -> Option<UserError>;
 
-    /// Same as [`Self::user`], but provides the given permissions in the error
+    /// Attaches the given permissions if the error is
+    /// [`UserError::MissingPermissions`]
     ///
     /// Useful when a missing permissions error might occur outside of
     /// [`InteractionHandle::check_permissions`]
     ///
     /// Overrides the previous permissions
-    fn user_with_permissions(&self, required_permissions: Permissions) -> Option<UserError>;
+    ///
+    /// # Warning
+    ///
+    /// Make sure to call it just before the last usage of the error, it does
+    /// nothing if the error is not [`UserError::MissingPermissions`], so if
+    /// the error returns [`UserError::MissingPermissions`] later on, its
+    /// permissions will still be `None`
+    fn with_permissions(&mut self, required_permissions: Permissions);
 
     /// Extract the internal error
     ///
@@ -199,11 +207,9 @@ impl ErrorExt for anyhow::Error {
         None
     }
 
-    fn user_with_permissions(&self, required_permissions: Permissions) -> Option<UserError> {
+    fn with_permissions(&mut self, required_permissions: Permissions) {
         if let Some(UserError::MissingPermissions(_)) = self.user() {
-            Some(UserError::MissingPermissions(Some(required_permissions)))
-        } else {
-            self.user()
+            *self = UserError::MissingPermissions(Some(required_permissions)).into();
         }
     }
 
@@ -216,7 +222,6 @@ impl ErrorExt for anyhow::Error {
     }
 
     fn ignore(&self) -> bool {
-        self.user()
-            .map_or(false, |user_err| user_err == UserError::Ignore)
+        matches!(self.user(), Some(UserError::Ignore))
     }
 }
