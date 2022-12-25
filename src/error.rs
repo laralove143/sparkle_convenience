@@ -91,12 +91,7 @@ impl Bot {
                     message.clone().into_bytes(),
                     0,
                 )])
-                .unwrap_or_else(|_| {
-                    self.http
-                        .execute_webhook(*webhook_id, webhook_token)
-                        .content("There was a message to log but it's too long to send here")
-                        .unwrap()
-                })
+                .unwrap()
                 .await
             {
                 let _ = writeln!(message, "Failed to log the message in the channel: {e}");
