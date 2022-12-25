@@ -196,7 +196,7 @@ impl ErrorExt for anyhow::Error {
         }
 
         if let Some(http_err) = self.downcast_ref::<twilight_http::Error>() {
-            if http_err.unknown_message() || http_err.failed_dm() {
+            if http_err.unknown_message() || http_err.failed_dm() || http_err.reaction_blocked() {
                 return Some(UserError::Ignore);
             }
             if http_err.missing_permissions() {

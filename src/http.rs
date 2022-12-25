@@ -9,8 +9,8 @@ pub mod message;
 pub mod webhook;
 
 /// Convenience methods for [`twilight_http::Client`]
-#[allow(clippy::module_name_repetitions)]
 #[async_trait]
+#[allow(clippy::module_name_repetitions)]
 pub trait HttpExt {
     /// Send a private message to a user
     async fn dm_user(&self, user_id: Id<UserMarker>) -> Result<CreateMessage<'_>, anyhow::Error>;

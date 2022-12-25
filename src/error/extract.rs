@@ -16,6 +16,10 @@ pub trait HttpErrorExt {
 
     /// Return whether this error is a `Cannot send messages to this user` error
     fn failed_dm(&self) -> bool;
+
+    /// Return whether this error is a `Reaction blocked` error, returned when
+    /// trying to add a reaction to a message whose author blocked the bot
+    fn reaction_blocked(&self) -> bool;
 }
 
 impl HttpErrorExt for twilight_http::Error {
@@ -32,14 +36,18 @@ impl HttpErrorExt for twilight_http::Error {
     }
 
     fn missing_permissions(&self) -> bool {
-        self.code().map_or(false, |code| code == 50013)
+        self.code() == Some(50013)
     }
 
     fn unknown_message(&self) -> bool {
-        self.code().map_or(false, |code| code == 10008)
+        self.code() == Some(10008)
     }
 
     fn failed_dm(&self) -> bool {
-        self.code().map_or(false, |code| code == 50007)
+        self.code() == Some(50007)
+    }
+
+    fn reaction_blocked(&self) -> bool {
+        self.code() == Some(90001)
     }
 }
