@@ -72,15 +72,14 @@ impl Bot {
     ///
     /// - Prints the message
     /// - If a logging channel was given, executes a webhook with the message in
-    ///   an embed
+    ///   an attachment (An attachment is used to raise the character limit)
     /// - If a file path was given, appends the message to it
     ///
     /// If there's an error with logging, also logs the error
     ///
     /// # Panics
     ///
-    /// If the message is too long to be in an embed and the fallback message is
-    /// invalid
+    /// If the attachment name (static) or description (none) is invalid
     pub async fn log(&self, mut message: String) {
         if let Some((webhook_id, webhook_token)) = &self.logging_webhook {
             if let Err(e) = self
