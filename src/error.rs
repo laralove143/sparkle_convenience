@@ -6,8 +6,8 @@ use std::{
 };
 
 use twilight_model::{
-    channel::message::Embed,
     guild::Permissions,
+    http::attachment::Attachment,
     id::{marker::ChannelMarker, Id},
 };
 
@@ -86,21 +86,11 @@ impl Bot {
             if let Err(e) = self
                 .http
                 .execute_webhook(*webhook_id, webhook_token)
-                .embeds(&vec![Embed {
-                    description: Some(message.clone()),
-                    author: None,
-                    color: None,
-                    fields: vec![],
-                    footer: None,
-                    image: None,
-                    kind: String::new(),
-                    provider: None,
-                    thumbnail: None,
-                    timestamp: None,
-                    title: None,
-                    url: None,
-                    video: None,
-                }])
+                .attachments(&[Attachment::from_bytes(
+                    "error_message.txt".to_string(),
+                    message.clone().into_bytes(),
+                    0,
+                )])
                 .unwrap_or_else(|_| {
                     self.http
                         .execute_webhook(*webhook_id, webhook_token)
