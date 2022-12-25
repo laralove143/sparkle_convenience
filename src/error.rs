@@ -108,7 +108,7 @@ impl Bot {
             }
         }
 
-        println!("{message}");
+        println!("\n{message}");
     }
 }
 
