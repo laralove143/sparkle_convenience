@@ -76,25 +76,9 @@ impl Bot {
     /// - If a file path was given, appends the message to it
     ///
     /// If there's an error with logging, also logs the error
-    ///
-    /// # Panics
-    ///
-    /// If the attachment name (static) or description (none) is invalid
     pub async fn log(&self, mut message: String) {
-        if let Some((webhook_id, webhook_token)) = &self.logging_webhook {
-            if let Err(e) = self
-                .http
-                .execute_webhook(*webhook_id, webhook_token)
-                .attachments(&[Attachment::from_bytes(
-                    "error_message.txt".to_string(),
-                    message.clone().into_bytes(),
-                    0,
-                )])
-                .unwrap()
-                .await
-            {
-                let _ = writeln!(message, "Failed to log the message in the channel: {e}");
-            }
+        if let Err(e) = self.log_webhook(message.clone()).await {
+            let _ = writeln!(message, "Failed to log the message in the channel: {e}");
         }
 
         if let Some(path) = &self.logging_file_path {
@@ -109,6 +93,21 @@ impl Bot {
         }
 
         println!("\n{message}");
+    }
+
+    async fn log_webhook(&self, message: String) -> Result<(), anyhow::Error> {
+        if let Some((webhook_id, webhook_token)) = &self.logging_webhook {
+            self.http
+                .execute_webhook(*webhook_id, webhook_token)
+                .attachments(&[Attachment::from_bytes(
+                    "error_message.txt".to_string(),
+                    message.into_bytes(),
+                    0,
+                )])?
+                .await?;
+        }
+
+        Ok(())
     }
 }
 
