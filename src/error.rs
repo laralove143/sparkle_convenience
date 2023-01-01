@@ -146,6 +146,14 @@ pub trait ErrorExt: Sized {
     /// reported to the user
     ///
     /// Refer to the example on [`Bot`] for the error handling flow
+    ///
+    /// # Warning
+    ///
+    /// `Missing access` errors will be converted to
+    /// [`UserError::MissingPermissions`] because that is the most common
+    /// encounter but they may also be caused by internal errors (i.e trying to
+    /// make a request on a guild that the bot is not in), there is
+    /// unfortunately no way to differentiate between the two
     fn user(&self) -> Option<UserError>;
 
     /// Attaches the given permissions if the error is
@@ -183,7 +191,7 @@ impl ErrorExt for anyhow::Error {
             if http_err.unknown_message() || http_err.failed_dm() || http_err.reaction_blocked() {
                 return Some(UserError::Ignore);
             }
-            if http_err.missing_permissions() {
+            if http_err.missing_permissions() || http_err.missing_access() {
                 return Some(UserError::MissingPermissions(None));
             }
         }
