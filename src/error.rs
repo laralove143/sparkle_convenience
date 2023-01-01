@@ -99,6 +99,7 @@ impl Bot {
         if let Some((webhook_id, webhook_token)) = &self.logging_webhook {
             self.http
                 .execute_webhook(*webhook_id, webhook_token)
+                .username(&self.user.name)?
                 .attachments(&[Attachment::from_bytes(
                     "error_message.txt".to_string(),
                     message.into_bytes(),
