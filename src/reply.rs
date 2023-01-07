@@ -4,7 +4,7 @@ use twilight_model::{
 };
 
 /// The message to reply to the interaction with
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Reply {
     pub(crate) content: String,
     pub(crate) embeds: Vec<Embed>,
