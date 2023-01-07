@@ -217,3 +217,70 @@ impl ErrorExt for anyhow::Error {
         matches!(self.user(), Some(UserError::Ignore))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        env::VarError,
+        error::Error,
+        fmt::{Display, Formatter},
+    };
+
+    use twilight_model::guild::Permissions;
+
+    use crate::error::{ErrorExt, UserError};
+
+    #[derive(Debug)]
+    enum CustomError {
+        TooSlay,
+    }
+
+    impl Display for CustomError {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            f.write_str("You slayed too hard")
+        }
+    }
+
+    impl Error for CustomError {}
+
+    #[test]
+    fn user_err_downcast() {
+        let ignore_err = UserError::Ignore;
+        assert_eq!(Some(ignore_err), anyhow::Error::from(ignore_err).user());
+
+        let permissions_err = UserError::MissingPermissions(Some(Permissions::CREATE_INVITE));
+        assert_eq!(
+            Some(permissions_err),
+            anyhow::Error::from(permissions_err).user()
+        );
+    }
+
+    #[test]
+    fn err_with_permissions() {
+        let permissions = Permissions::CREATE_INVITE;
+
+        let mut err = anyhow::Error::from(UserError::MissingPermissions(None));
+        err.with_permissions(permissions);
+        assert_eq!(
+            Some(UserError::MissingPermissions(Some(permissions))),
+            err.user()
+        );
+    }
+
+    #[test]
+    fn internal_err_downcast() {
+        let user_err = anyhow::Error::from(UserError::Ignore);
+        assert!(user_err.internal::<CustomError>().is_none());
+
+        let custom_err = anyhow::Error::from(CustomError::TooSlay);
+        assert!(custom_err.internal::<CustomError>().is_none());
+
+        assert_eq!(
+            Some(&VarError::NotPresent),
+            anyhow::Error::from(VarError::NotPresent)
+                .internal::<CustomError>()
+                .as_ref()
+                .and_then(anyhow::Error::downcast_ref)
+        );
+    }
+}
