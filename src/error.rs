@@ -126,8 +126,8 @@ pub enum UserError {
     MissingPermissions(Option<Permissions>),
     /// The error is safe to ignore
     ///
-    /// Returned when the HTTP error is [`HttpErrorExt::unknown_message`] or
-    /// [`HttpErrorExt::failed_dm`]
+    /// Returned when the HTTP error is [`HttpErrorExt::unknown_message`],
+    /// [`HttpErrorExt::failed_dm`] or [`HttpErrorExt::reaction_blocked`]
     Ignore,
 }
 
