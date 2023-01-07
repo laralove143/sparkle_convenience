@@ -206,7 +206,7 @@ impl ErrorExt for anyhow::Error {
     }
 
     fn internal<Custom: Display + Debug + Send + Sync + 'static>(self) -> Option<Self> {
-        if self.user().is_none() || self.downcast_ref::<Custom>().is_none() {
+        if self.user().is_none() && self.downcast_ref::<Custom>().is_none() {
             Some(self)
         } else {
             None
