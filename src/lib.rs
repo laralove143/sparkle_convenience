@@ -48,7 +48,195 @@
     // must_not_suspend,
     // non_exhaustive_omitted_patterns,
 )]
-#![doc = include_str!("../README.md")]
+
+//! A wrapper over [Twilight](https://github.com/twilight-rs/twilight) that's designed to be
+//! convenient to use, without relying on callbacks and mostly following
+//! Twilight patterns while making your life easier
+//!
+//! # Concise Startup
+//!
+//! ```no_run
+//! # use twilight_gateway::EventTypeFlags;
+//! # use twilight_model::gateway::Intents;
+//! # use anyhow::Result;
+//! use sparkle_convenience::Bot;
+//! # async fn new() -> Result<()> {
+//! Bot::new(
+//!     "forgot to leak my token".to_owned(),
+//!     Intents::GUILD_MESSAGES,
+//!     EventTypeFlags::INTERACTION_CREATE,
+//! )
+//! .await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! Yes that's really it... [`Bot`] has all the things you'd need from Twilight
+//!
+//! # Interaction Handling
+//!
+//! ```rust
+//! # use twilight_model::application::interaction::Interaction;
+//! # use anyhow::Result;
+//! # use twilight_model::guild::Permissions;
+//! use sparkle_convenience::{
+//!     error::conversion::IntoError,
+//!     interaction::extract::{InteractionDataExt, InteractionExt},
+//!     reply::Reply,
+//!     Bot,
+//! };
+//!
+//! # async fn handle_interaction(bot: &Bot, interaction: Interaction) -> Result<()> {
+//! let handle = bot.interaction_handle(&interaction);
+//! match interaction.name().ok()? {
+//!     "pay_respects" => {
+//!         handle.defer(true).await?;
+//!         // More on error handling below
+//!         handle.check_permissions(Permissions::MANAGE_GUILD)?;
+//!         // Say this is a user command
+//!         let _very_respected_user = interaction.data.ok()?.command().ok()?.target_id.ok()?;
+//!         // There are similar methods for autocomplete and modal responses
+//!         handle
+//!             .followup(
+//!                 Reply::new()
+//!                     .ephemeral()
+//!                     .content("You have -1 respect now".to_owned()),
+//!             )
+//!             .await?;
+//!     }
+//!     _ => {}
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Error Handling
+//!
+//! ## User-Facing Errors
+//!
+//! ```rust
+//! # use std::fmt::{Display, Formatter};
+//! # use anyhow::Result;
+//! # use twilight_http::{request::channel::reaction::RequestReactionType, Client};
+//! # use twilight_model::{
+//! #     channel::Message,
+//! #     guild::Permissions,
+//! #     id::{
+//! #         marker::{ChannelMarker, MessageMarker},
+//! #         Id,
+//! #     },
+//! # };
+//! use sparkle_convenience::{
+//!     error::{conversion::IntoError, ErrorExt, UserError},
+//!     http::message::CreateMessageExt,
+//!     prettify::Prettify,
+//!     reply::Reply,
+//! };
+//! # #[derive(Debug)]
+//! # enum CustomError {};
+//! #
+//! # impl Display for CustomError {
+//! #    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//! #        f.write_str("")
+//! #    }
+//! # }
+//!
+//! async fn wave(
+//!     client: &Client,
+//!     channel_id: Id<ChannelMarker>,
+//!     message_id: Id<MessageMarker>,
+//! ) -> Result<()> {
+//!     client
+//!         .create_reaction(
+//!             channel_id,
+//!             message_id,
+//!             &RequestReactionType::Unicode { name: "👋" },
+//!         )
+//!         .await?;
+//!     Ok(())
+//! }
+//!
+//! async fn handle_message(client: &Client, message: Message) -> Result<()> {
+//!     if let Err(mut err) = wave(client, message.channel_id, message.id).await {
+//!         // For example if the message was already deleted (probably by some moderation bot..)
+//!         if err.ignore() {
+//!             return Ok(());
+//!         }
+//!
+//!         // Not needed in interactions thanks to `InteractionHandle::check_permissions`
+//!         err.with_permissions(Permissions::READ_MESSAGE_HISTORY | Permissions::ADD_REACTIONS);
+//!
+//!         client
+//!             .create_message(message.channel_id)
+//!             .with_reply(&err_reply(&err))?
+//!             .execute_ignore_permissions()
+//!             .await?;
+//!
+//!         // `CustomError` is for your own errors
+//!         if let Some(err) = err.internal::<CustomError>() {
+//!             return Err(err);
+//!         }
+//!     }
+//!
+//!     Ok(())
+//! }
+//!
+//! // Returns a reply that you can conveniently use in messages, interactions, even webhooks
+//! fn err_reply(err: &anyhow::Error) -> Reply {
+//!     let message = if let Some(UserError::MissingPermissions(permissions)) = err.user() {
+//!         format!(
+//!             "Give me those sweet permissions:\n{}",
+//!             permissions.unwrap().prettify() // Also provided by this crate
+//!         )
+//!     } else {
+//!         "Uh oh...".to_owned()
+//!     };
+//!     Reply::new().ephemeral().content(message)
+//! }
+//! ```
+//!
+//! ## Internal Errors
+//!
+//! ```no_run
+//! # use anyhow::Result;
+//! # use twilight_gateway::EventTypeFlags;
+//! # use twilight_model::{
+//! #     gateway::{event::Event, Intents},
+//! #     id::Id,
+//! # };
+//! use sparkle_convenience::Bot;
+//!
+//! # async fn handle_event() -> Result<()> { Ok(()) }
+//! # async fn log_example(mut bot: Bot) -> Result<()> {
+//! bot.set_logging_channel(Id::new(123)).await?;
+//! bot.set_logging_file("log.txt".to_owned());
+//! if let Err(err) = handle_event().await {
+//!     // Executes a webhook in the channel
+//!     // (error message is in an attachment so don't worry if it's too long)
+//!     // And appends the error to the file
+//!     bot.log(format!("{err:?}")).await;
+//! };
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # DMs
+//!
+//! ```rust
+//! # use anyhow::Result;
+//! # use twilight_http::Client;
+//! # use twilight_model::id::{marker::UserMarker, Id};
+//! use sparkle_convenience::http::HttpExt;
+//!
+//! # async fn annoy_user(client: &Client, user_id: Id<UserMarker>) -> Result<()> {
+//! client
+//!     .dm_user(user_id)
+//!     .await?
+//!     .content("This bot is brought to you by Skillshare")?
+//!     .await?;
+//! # Ok(())
+//! # }
+//! ```
 
 use std::{fmt::Debug, sync::Arc};
 
@@ -74,163 +262,6 @@ pub mod prettify;
 pub mod reply;
 
 /// All data required to make a bot run
-///
-/// # Example
-///
-/// This is a full-fledged `/ping` command implementation using all modules of
-/// this crate
-///
-/// ```no_run
-/// use std::{
-///     error::Error,
-///     fmt::{Display, Formatter, Write},
-///     ops::Deref,
-///     sync::Arc,
-/// };
-///
-/// use anyhow::anyhow;
-/// use futures::stream::StreamExt;
-/// use sparkle_convenience::{
-///     error::{conversion::IntoError, ErrorExt, UserError},
-///     interaction::{extract::InteractionExt, InteractionHandle},
-///     prettify::Prettify,
-///     reply::Reply,
-///     Bot,
-/// };
-/// use twilight_gateway::{Event, EventTypeFlags};
-/// use twilight_model::{
-///     application::interaction::{Interaction, InteractionData},
-///     gateway::Intents,
-///     guild::Permissions,
-/// };
-///
-/// #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-/// enum CustomError {
-///     BotScared,
-/// }
-///
-/// impl Display for CustomError {
-///     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-///         f.write_str("a user error has been handled like an internal error")
-///     }
-/// }
-///
-/// impl Error for CustomError {}
-///
-/// struct Context {
-///     bot: Bot,
-///     custom: (), // For example, the database pool could be here
-/// }
-///
-/// struct InteractionContext<'ctx> {
-///     handle: InteractionHandle<'ctx>,
-///     ctx: &'ctx Context,
-///     interaction: Interaction,
-/// }
-///
-/// impl InteractionContext<'_> {
-///     async fn run_ping_pong(self) -> Result<(), anyhow::Error> {
-///         self.handle.check_permissions(Permissions::ADMINISTRATOR)?;
-///
-///         if self.interaction.user().ok()?.name.contains("boo") {
-///             return Err(CustomError::BotScared.into());
-///         }
-///
-///         self.handle
-///             .followup(Reply::new().ephemeral().content("Pong!".to_owned()))
-///             .await?;
-///
-///         Ok(())
-///     }
-/// }
-///
-/// impl Context {
-///     async fn handle_event(&self, event: Event) -> Result<(), anyhow::Error> {
-///         match event {
-///             Event::InteractionCreate(interaction) => {
-///                 self.handle_interaction(interaction.0).await?
-///             }
-///             _ => (),
-///         }
-///
-///         Ok(())
-///     }
-///
-///     async fn handle_interaction(&self, interaction: Interaction) -> Result<(), anyhow::Error> {
-///         let handle = self.bot.interaction_handle(&interaction);
-///         handle.defer(true).await?;
-///         let ctx = InteractionContext {
-///             handle: handle.clone(),
-///             ctx: &self,
-///             interaction,
-///         };
-///
-///         if let Err(err) = match ctx.interaction.name().ok()? {
-///             "ping" => ctx.run_ping_pong().await,
-///             name => Err(anyhow!("Unknown command: {name}")),
-///         } {
-///             if err.ignore() {
-///                 return Ok(());
-///             }
-///
-///             handle.followup(err_reply(&err)?).await?;
-///
-///             if let Some(err) = err.internal::<CustomError>() {
-///                 return Err(err);
-///             }
-///         }
-///
-///         Ok(())
-///     }
-/// }
-///
-/// #[tokio::main]
-/// async fn main() -> Result<(), anyhow::Error> {
-///     let (bot, mut events) = Bot::new(
-///         "totally real token".to_owned(),
-///         Intents::empty(),
-///         EventTypeFlags::all(),
-///     )
-///     .await?;
-///     let ctx = Arc::new(Context { bot, custom: () });
-///
-///     while let Some((_, event)) = events.next().await {
-///         let ctx_ref = Arc::clone(&ctx);
-///         tokio::spawn(async move {
-///             if let Err(err) = ctx_ref.handle_event(event).await {
-///                 ctx_ref.bot.log(err.to_string()).await;
-///             }
-///         });
-///     }
-///
-///     Ok(())
-/// }
-///
-/// // This can be a trait implemented on the error if you prefer
-/// fn err_reply(err: &anyhow::Error) -> Result<Reply, anyhow::Error> {
-///     let message = if let Some(user_err) = err.user() {
-///         match user_err {
-///             UserError::MissingPermissions(permissions) => format!(
-///                 "I need these permissions first:\n{}",
-///                 // Make sure to use ErrorExt::user_with_permissions when required
-///                 permissions.ok()?.prettify()
-///             ),
-///             // Make sure not to try to handle the error when it should be ignored
-///             UserError::Ignore => {
-///                 return Err(anyhow!("tried to handle an error that should be ignored"))
-///             }
-///         }
-///     } else if let Some(custom_err) = err.downcast_ref::<CustomError>() {
-///         match custom_err {
-///             CustomError::BotScared => "Please register first".to_owned(),
-///         }
-///     } else {
-///         "Something went wrong, the error has been reported to the developer".to_owned()
-///     };
-///
-///     Ok(Reply::new().ephemeral().content(message))
-/// }
-/// ```
 #[derive(Debug)]
 #[must_use]
 pub struct Bot {
