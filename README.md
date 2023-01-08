@@ -15,8 +15,3 @@ Please have a look at the docs (Code appears better there)
 
 The scope of this project includes anything in Twilight that could be more convenient to use, please make an
 issue for anything that falls under this category!
-
-## Caching
-
-HTTP-fallback is not a good idea for many reasons, and there isn't much this crate could provide besides that, but
-caching everything possible will give you a peace of mind
