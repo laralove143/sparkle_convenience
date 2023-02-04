@@ -130,9 +130,10 @@
 //!     message::CreateMessageExt,
 //!     prettify::Prettify,
 //!     reply::Reply,
+//!     Bot,
 //! };
 //! # #[derive(Debug)]
-//! # enum CustomError {};
+//! # enum CustomError {}
 //! #
 //! # impl Display for CustomError {
 //! #    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -155,29 +156,15 @@
 //!     Ok(())
 //! }
 //!
-//! async fn handle_message(client: &Client, message: Message) -> Result<()> {
+//! async fn handle_message(bot: &Bot, message: Message) {
 //!     if let Err(mut err) = wave(client, message.channel_id, message.id).await {
-//!         // For example if the message was already deleted (probably by some moderation bot..)
-//!         if err.ignore() {
-//!             return Ok(());
-//!         }
-//!
 //!         // Not needed in interactions thanks to `InteractionHandle::check_permissions`
 //!         err.with_permissions(Permissions::READ_MESSAGE_HISTORY | Permissions::ADD_REACTIONS);
 //!
-//!         client
-//!             .create_message(message.channel_id)
-//!             .with_reply(&err_reply(&err))?
-//!             .execute_ignore_permissions()
-//!             .await?;
-//!
-//!         // `CustomError` is for your own errors
-//!         if let Some(err) = err.internal::<CustomError>() {
-//!             return Err(err);
-//!         }
+//!         /// Similar method exists for `InteractionHandle`
+//!         bot.handle_error(message.channel_id, err_reply(&err), err)
+//!             .await;
 //!     }
-//!
-//!     Ok(())
 //! }
 //!
 //! // Returns a reply that you can conveniently use in messages, interactions, even webhooks
