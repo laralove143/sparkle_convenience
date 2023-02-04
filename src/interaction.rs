@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use twilight_http::client::InteractionClient;
 use twilight_model::{
@@ -12,7 +12,11 @@ use twilight_model::{
     id::{marker::InteractionMarker, Id},
 };
 
-use crate::{error::UserError, reply::Reply, Bot};
+use crate::{
+    error::{ErrorExt, UserError},
+    reply::Reply,
+    Bot,
+};
 
 /// Extracting data from interactions
 pub mod extract;
@@ -70,6 +74,38 @@ impl InteractionHandle<'_> {
         }
 
         Ok(())
+    }
+
+    /// Handle an error returned in an interaction
+    ///
+    /// The passed reply should be the reply that should be shown to the user
+    /// based on the error
+    ///
+    /// The type parameter `Custom` is used to determine if the error is
+    /// internal
+    ///
+    /// - If the given error should be ignored, simply returns early
+    /// - Tries to reply to the interaction with the given reply, if it fails
+    ///   and the error is internal, logs the error
+    /// - If the given error is internal, logs the error
+    pub async fn handle_error<Custom: Display + Debug + Send + Sync + 'static>(
+        &self,
+        reply: Reply,
+        error: anyhow::Error,
+    ) {
+        if error.ignore() {
+            return;
+        }
+
+        if let Err(reply_err) = self.reply(reply).await {
+            if let Some(reply_internal_err) = reply_err.internal::<Custom>() {
+                self.bot.log(reply_internal_err).await;
+            }
+        }
+
+        if let Some(internal_err) = error.internal::<Custom>() {
+            self.bot.log(internal_err).await;
+        }
     }
 
     /// Defer the interaction

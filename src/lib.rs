@@ -128,7 +128,7 @@
 //! # };
 //! use sparkle_convenience::{
 //!     error::{conversion::IntoError, ErrorExt, UserError},
-//!     http::message::CreateMessageExt,
+//!     message::CreateMessageExt,
 //!     prettify::Prettify,
 //!     reply::Reply,
 //! };
@@ -204,7 +204,7 @@
 //! #     gateway::{event::Event, Intents},
 //! #     id::Id,
 //! # };
-//! use sparkle_convenience::{error::DisplayFormat, Bot};
+//! use sparkle_convenience::{log::DisplayFormat, Bot};
 //!
 //! # async fn handle_event() -> Result<()> { Ok(()) }
 //! # async fn log_example(mut bot: Bot) -> Result<()> {
@@ -228,7 +228,7 @@
 //! # use anyhow::Result;
 //! # use twilight_http::Client;
 //! # use twilight_model::id::{marker::UserMarker, Id};
-//! use sparkle_convenience::http::HttpExt;
+//! use sparkle_convenience::message::HttpExt;
 //!
 //! # async fn annoy_user(client: &Client, user_id: Id<UserMarker>) -> Result<()> {
 //! client
@@ -252,18 +252,22 @@ use twilight_model::{
     user::CurrentUser,
 };
 
-use crate::error::DisplayFormat;
+use crate::log::DisplayFormat;
 
-/// Convenient error handling
+/// Error types, convenience methods on other errors
 pub mod error;
-/// Making HTTP requests conveniently
-pub mod http;
 /// Convenient interaction handling
 pub mod interaction;
+/// Logging methods on [`Bot`]
+pub mod log;
+/// Convenient message handling
+pub mod message;
 /// Formatting types into user-readable pretty strings
 pub mod prettify;
 /// The [`reply::Reply`] struct
 pub mod reply;
+/// Convenient webhook handling
+pub mod webhook;
 
 /// All data required to make a bot run
 #[derive(Debug)]
