@@ -79,8 +79,11 @@
 //! # use anyhow::Result;
 //! # use twilight_model::guild::Permissions;
 //! use sparkle_convenience::{
-//!     error::conversion::IntoError,
-//!     interaction::extract::{InteractionDataExt, InteractionExt},
+//!     error::IntoError,
+//!     interaction::{
+//!         extract::{InteractionDataExt, InteractionExt},
+//!         DeferVisibility,
+//!     },
 //!     reply::Reply,
 //!     Bot,
 //! };
@@ -89,7 +92,7 @@
 //! let handle = bot.interaction_handle(&interaction);
 //! match interaction.name().ok()? {
 //!     "pay_respects" => {
-//!         handle.defer(true).await?;
+//!         handle.defer(DeferVisibility::Ephemeral).await?;
 //!         // More on error handling below
 //!         handle.check_permissions(Permissions::MANAGE_GUILD)?;
 //!         // Say this is a user command
@@ -126,20 +129,23 @@
 //! #     },
 //! # };
 //! use sparkle_convenience::{
-//!     error::{conversion::IntoError, ErrorExt, UserError},
+//!     error::{ErrorExt, IntoError, UserError},
 //!     message::CreateMessageExt,
 //!     prettify::Prettify,
 //!     reply::Reply,
 //!     Bot,
 //! };
-//! # #[derive(Debug)]
-//! # enum CustomError {}
-//! #
-//! # impl Display for CustomError {
-//! #    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//! #        f.write_str("")
-//! #    }
-//! # }
+//!
+//! #[derive(Debug)]
+//! enum CustomError {
+//!     WavesNotAppreciated,
+//! }
+//!
+//! impl Display for CustomError {
+//!     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//!         f.write_str("a user error has been handled like an internal error")
+//!     }
+//! }
 //!
 //! async fn wave(
 //!     client: &Client,
@@ -157,12 +163,12 @@
 //! }
 //!
 //! async fn handle_message(bot: &Bot, message: Message) {
-//!     if let Err(mut err) = wave(client, message.channel_id, message.id).await {
+//!     if let Err(mut err) = wave(&bot.http, message.channel_id, message.id).await {
 //!         // Not needed in interactions thanks to `InteractionHandle::check_permissions`
 //!         err.with_permissions(Permissions::READ_MESSAGE_HISTORY | Permissions::ADD_REACTIONS);
 //!
 //!         /// Similar method exists for `InteractionHandle`
-//!         bot.handle_error(message.channel_id, err_reply(&err), err)
+//!         bot.handle_error::<CustomError>(message.channel_id, err_reply(&err), err)
 //!             .await;
 //!     }
 //! }
