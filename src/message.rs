@@ -1,16 +1,62 @@
+use std::fmt::{Debug, Display};
+
 use anyhow;
 use async_trait::async_trait;
 use twilight_http::{request::channel::message::CreateMessage, Response};
 use twilight_model::{
     channel::Message,
-    id::{marker::UserMarker, Id},
+    id::{
+        marker::{ChannelMarker, UserMarker},
+        Id,
+    },
 };
 use twilight_validate::message::MessageValidationError;
 
 use crate::{
-    error::{extract::HttpErrorExt, UserError},
+    error::{extract::HttpErrorExt, ErrorExt, UserError},
     reply::Reply,
+    Bot,
 };
+
+impl Bot {
+    /// Handle an error returned in a message
+    ///
+    /// The passed reply should be the reply that should be shown to the user
+    /// based on the error
+    ///
+    /// The type parameter `Custom` is used to determine if the error is
+    /// internal
+    ///
+    /// - If the given error should be ignored, simply returns early
+    /// - Tries to send the given reply to the channel, if it fails and the
+    ///   error is internal, logs the error
+    /// - If the given error is internal, logs the error
+    pub async fn handle_error<Custom: Display + Debug + Send + Sync + 'static>(
+        &self,
+        channel_id: Id<ChannelMarker>,
+        reply: Reply,
+        error: anyhow::Error,
+    ) {
+        if error.ignore() {
+            return;
+        }
+
+        let create_message_res = match self.http.create_message(channel_id).with_reply(&reply) {
+            Ok(create) => create.await.map_err(anyhow::Error::new),
+            Err(validation_err) => Err(anyhow::Error::new(validation_err)),
+        };
+
+        if let Err(create_message_err) = create_message_res {
+            if let Some(create_message_internal_err) = create_message_err.internal::<Custom>() {
+                self.log(create_message_internal_err).await;
+            }
+        }
+
+        if let Some(internal_err) = error.internal::<Custom>() {
+            self.log(internal_err).await;
+        }
+    }
+}
 
 /// Convenience methods for [`twilight_http::Client`]
 #[async_trait]
