@@ -20,7 +20,43 @@ pub mod conversion;
 /// Extracting data from Twilight's errors
 pub mod extract;
 
+/// The format to use when converting a message to string
+#[derive(Clone, Copy, Debug)]
+pub enum DisplayFormat {
+    /// Use the `Display` implementation on the type, akin to `format!("{x}")`
+    Display,
+    /// Use the `Debug` implementation on the type, akin to `format!("{x:?}")`
+    Debug,
+    /// Use the alternate formatting implementation on the type, akin to
+    /// `format!("{x:#?}")`
+    Alternate,
+}
+
+impl DisplayFormat {
+    fn writeln<T: Display + Debug>(self, s: &mut String, t: &T) {
+        let _write_res = match self {
+            Self::Display => writeln!(s, "{t}"),
+            Self::Debug => writeln!(s, "{t:?}"),
+            Self::Alternate => writeln!(s, "{t:#?}"),
+        };
+    }
+}
+
 impl Bot {
+    /// Set the format to use for converting messages to strings
+    ///
+    /// Defaults to [`DisplayFormat::Display`]
+    pub fn set_logging_format(&mut self, format: DisplayFormat) {
+        self.logging_format = format;
+    }
+
+    /// Disable printing messages when logging them
+    ///
+    /// It's enabled by default
+    pub fn disable_logging_printing(&mut self) {
+        self.logging_print_enabled = false;
+    }
+
     /// Set the channel to log messages to
     ///
     /// Uses the first webhook in the channel that's made by the bot or creates
@@ -70,15 +106,24 @@ impl Bot {
 
     /// Log the given message
     ///
-    /// - Prints the message
-    /// - If a logging channel was given, executes a webhook with the message in
-    ///   an attachment (An attachment is used to raise the character limit)
-    /// - If a file path was given, appends the message to it
+    /// - Unless [`Self::disable_logging_printing`] was called with false,
+    ///   prints the message
+    /// - If [`Self::set_logging_channel`] was called, executes a webhook with
+    ///   the message in an attachment (An attachment is used to raise the
+    ///   character limit)
+    /// - If [`Self::set_logging_file`] was called, appends the message to the
+    ///   file
     ///
     /// If there's an error with logging, also logs the error
-    pub async fn log(&self, mut message: String) {
-        if let Err(e) = self.log_webhook(message.clone()).await {
-            let _ = writeln!(message, "Failed to log the message in the channel: {e}");
+    ///
+    /// Uses value set with [`Self::set_logging_format`]
+    pub async fn log<T: Display + Debug + Send>(&self, message: T) {
+        let mut s = String::new();
+        self.logging_format.writeln(&mut s, &message);
+
+        if let Err(e) = self.log_webhook(s.clone()).await {
+            let _ = writeln!(s, "Failed to log the message in the channel:\n");
+            self.logging_format.writeln(&mut s, &e);
         }
 
         if let Some(path) = &self.logging_file_path {
@@ -86,13 +131,16 @@ impl Bot {
                 .create(true)
                 .append(true)
                 .open(path)
-                .and_then(|mut file| writeln!(file, "{message}"))
+                .and_then(|mut file| writeln!(file, "{s}"))
             {
-                let _ = writeln!(message, "Failed to log the message to file: {e}");
+                let _ = writeln!(s, "Failed to log the message to file:\n");
+                self.logging_format.writeln(&mut s, &e);
             }
         }
 
-        println!("\n{message}");
+        if self.logging_print_enabled {
+            println!("{s}");
+        }
     }
 
     async fn log_webhook(&self, message: String) -> Result<(), anyhow::Error> {

@@ -204,17 +204,19 @@
 //! #     gateway::{event::Event, Intents},
 //! #     id::Id,
 //! # };
-//! use sparkle_convenience::Bot;
+//! use sparkle_convenience::{error::DisplayFormat, Bot};
 //!
 //! # async fn handle_event() -> Result<()> { Ok(()) }
 //! # async fn log_example(mut bot: Bot) -> Result<()> {
+//! bot.disable_logging_printing();
+//! bot.set_logging_format(DisplayFormat::Debug);
 //! bot.set_logging_channel(Id::new(123)).await?;
 //! bot.set_logging_file("log.txt".to_owned());
 //! if let Err(err) = handle_event().await {
 //!     // Executes a webhook in the channel
 //!     // (error message is in an attachment so don't worry if it's too long)
 //!     // And appends the error to the file
-//!     bot.log(format!("{err:?}")).await;
+//!     bot.log(err).await;
 //! };
 //! # Ok(())
 //! # }
@@ -250,6 +252,8 @@ use twilight_model::{
     user::CurrentUser,
 };
 
+use crate::error::DisplayFormat;
+
 /// Convenient error handling
 pub mod error;
 /// Making HTTP requests conveniently
@@ -273,6 +277,10 @@ pub struct Bot {
     pub application: Application,
     /// The user info of the bot
     pub user: CurrentUser,
+    /// The format configuration for logging
+    pub logging_format: DisplayFormat,
+    /// Whether to print messages when logging
+    pub logging_print_enabled: bool,
     /// The webhook to log errors using
     pub logging_webhook: Option<(Id<WebhookMarker>, String)>,
     /// The file to append errors to
@@ -324,6 +332,8 @@ impl Bot {
                 cluster: cluster_arc,
                 application,
                 user,
+                logging_format: DisplayFormat::Display,
+                logging_print_enabled: true,
                 logging_webhook: None,
                 logging_file_path: None,
             },
