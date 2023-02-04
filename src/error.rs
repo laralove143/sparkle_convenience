@@ -1,7 +1,6 @@
 use std::{
     any::type_name,
-    error::Error,
-    fmt::{Debug, Display, Formatter},
+    fmt::{Debug, Display},
 };
 
 use anyhow::anyhow;
@@ -34,7 +33,7 @@ impl<T> IntoError<T> for Option<T> {
 /// A user-facing error
 ///
 /// The display implementation on this should not be used
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 #[allow(clippy::module_name_repetitions)]
 pub enum UserError {
     /// The bot is missing some required permissions
@@ -42,21 +41,15 @@ pub enum UserError {
     /// `None` when the error occurred outside of
     /// [`InteractionHandle::check_permissions`] and
     /// [`ErrorExt::with_permissions`] wasn't called
+    #[error("a user error has been handled like an internal error")]
     MissingPermissions(Option<Permissions>),
     /// The error is safe to ignore
     ///
     /// Returned when the HTTP error is [`HttpErrorExt::unknown_message`],
     /// [`HttpErrorExt::failed_dm`] or [`HttpErrorExt::reaction_blocked`]
+    #[error("a user error has been handled like an internal error")]
     Ignore,
 }
-
-impl Display for UserError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("a user error has been handled like an internal error")
-    }
-}
-
-impl Error for UserError {}
 
 /// Trait implemented on generic error types with convenience methods
 ///

@@ -12,6 +12,7 @@ categories = ["api-bindings", "asynchronous", "caching"]
 [dependencies]
 tokio = { version = "1.21", features = ["rt-multi-thread"] }
 anyhow = "1.0"
+thiserror = "1.0"
 async-trait = "0.1"
 titlecase = "2.2"
 twilight-http = "0.14"
