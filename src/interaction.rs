@@ -21,6 +21,15 @@ use crate::{
 /// Extracting data from interactions
 pub mod extract;
 
+/// Defines whether a defer request should be ephemeral
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DeferVisibility {
+    /// The defer request is only shown to the user that created the interaction
+    Ephemeral,
+    /// The defer request is shown to everyone in the channel
+    Visible,
+}
+
 /// Allows convenient interaction-related methods
 ///
 /// Created from [`Bot::interaction_handle`]
@@ -118,11 +127,11 @@ impl InteractionHandle<'_> {
     ///
     /// Returns [`twilight_http::error::Error`] if deferring the interaction
     /// fails
-    pub async fn defer(&self, ephemeral: bool) -> Result<(), anyhow::Error> {
+    pub async fn defer(&self, ephemeral: DeferVisibility) -> Result<(), anyhow::Error> {
         let defer_response = InteractionResponse {
             kind: InteractionResponseType::DeferredChannelMessageWithSource,
             data: Some(InteractionResponseData {
-                flags: ephemeral.then_some(MessageFlags::EPHEMERAL),
+                flags: (ephemeral == DeferVisibility::Ephemeral).then_some(MessageFlags::EPHEMERAL),
                 ..Default::default()
             }),
         };
