@@ -244,7 +244,7 @@ use twilight_model::{
     user::CurrentUser,
 };
 
-use crate::log::DisplayFormat;
+use crate::{error::Error, log::DisplayFormat};
 
 /// Error types, convenience methods on other errors
 pub mod error;
@@ -293,11 +293,9 @@ impl Bot {
     ///
     /// # Errors
     ///
-    /// Returns [`twilight_gateway::cluster::ClusterStartError`] if creating the
-    /// cluster fails
+    /// Returns [`Error::ClusterStart`] if creating the cluster fails
     ///
-    /// Returns [`twilight_http::error::Error`] or
-    /// [`twilight_http::response::DeserializeBodyError`] if getting the
+    /// Returns [`Error::Http`] or [`Error::DeserializeBody`] if getting the
     /// application info fails
     ///
     /// # Panics
@@ -307,7 +305,7 @@ impl Bot {
         token: String,
         intents: Intents,
         event_types: EventTypeFlags,
-    ) -> Result<(Self, Events), anyhow::Error> {
+    ) -> Result<(Self, Events), Error> {
         let (cluster, events) = Cluster::builder(token.clone(), intents)
             .event_types(event_types)
             .build()

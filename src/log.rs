@@ -9,7 +9,7 @@ use twilight_model::{
     id::{marker::ChannelMarker, Id},
 };
 
-use crate::Bot;
+use crate::{error::Error, Bot};
 
 /// The format to use when converting a message to string
 #[derive(Clone, Copy, Debug)]
@@ -55,9 +55,8 @@ impl Bot {
     ///
     /// # Errors
     ///
-    /// Returns [`twilight_http::error::Error`] or
-    /// [`twilight_http::response::DeserializeBodyError`] if getting or creating
-    /// the logging webhook fails
+    /// Returns [`Error::Http`] or [`Error::DeserializeBody`] if getting or
+    /// creating the logging webhook fails
     ///
     /// # Panics
     ///
@@ -65,7 +64,7 @@ impl Bot {
     pub async fn set_logging_channel(
         &mut self,
         channel_id: Id<ChannelMarker>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), Error> {
         let webhook = if let Some(webhook) = self
             .http
             .channel_webhooks(channel_id)
@@ -134,7 +133,7 @@ impl Bot {
         }
     }
 
-    async fn log_webhook(&self, message: String) -> Result<(), anyhow::Error> {
+    async fn log_webhook(&self, message: String) -> Result<(), Error> {
         if let Some((webhook_id, webhook_token)) = &self.logging_webhook {
             self.http
                 .execute_webhook(*webhook_id, webhook_token)

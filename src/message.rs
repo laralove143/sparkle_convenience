@@ -13,7 +13,8 @@ use twilight_model::{
 use twilight_validate::message::MessageValidationError;
 
 use crate::{
-    error::{extract::HttpErrorExt, ErrorExt, UserError},
+    error,
+    error::{extract::HttpErrorExt, Error, ErrorExt, UserError},
     reply::Reply,
     Bot,
 };
@@ -46,10 +47,10 @@ impl Bot {
             Err(validation_err) => Err(anyhow::Error::new(validation_err)),
         };
 
-        if let Err(create_message_err) = create_message_res {
-            if let Some(create_message_internal_err) = create_message_err.internal::<Custom>() {
-                self.log(create_message_internal_err).await;
-            }
+        if let Err(Some(create_message_err)) =
+            create_message_res.map_err(error::ErrorExt::internal::<Custom>)
+        {
+            self.log(create_message_err).await;
         }
 
         if let Some(internal_err) = error.internal::<Custom>() {
@@ -63,12 +64,12 @@ impl Bot {
 #[allow(clippy::module_name_repetitions)]
 pub trait HttpExt {
     /// Send a private message to a user
-    async fn dm_user(&self, user_id: Id<UserMarker>) -> Result<CreateMessage<'_>, anyhow::Error>;
+    async fn dm_user(&self, user_id: Id<UserMarker>) -> Result<CreateMessage<'_>, Error>;
 }
 
 #[async_trait]
 impl HttpExt for twilight_http::Client {
-    async fn dm_user(&self, user_id: Id<UserMarker>) -> Result<CreateMessage<'_>, anyhow::Error> {
+    async fn dm_user(&self, user_id: Id<UserMarker>) -> Result<CreateMessage<'_>, Error> {
         let channel_id = self
             .create_private_channel(user_id)
             .await?
@@ -100,12 +101,12 @@ pub trait CreateMessageExt<'a>: Sized {
     ///
     /// # Errors
     ///
-    /// Returns [`twilight_http::error::Error`] if creating the response fails
-    /// and the error is not [`HttpErrorExt::missing_permissions`]
+    /// Returns [`Error::Http`] if creating the response fails and the error is
+    /// not [`HttpErrorExt::missing_permissions`]
     ///
-    /// Returns [`UserError::Ignore`] if the error is
+    /// Returns [`Error::UserError`] with [`UserError::Ignore`] if the error is
     /// [`HttpErrorExt::missing_permissions`]
-    async fn execute_ignore_permissions(self) -> Result<Response<Message>, anyhow::Error>;
+    async fn execute_ignore_permissions(self) -> Result<Response<Message>, Error>;
 }
 
 #[async_trait]
@@ -129,10 +130,10 @@ impl<'a> CreateMessageExt<'a> for CreateMessage<'a> {
         Ok(message)
     }
 
-    async fn execute_ignore_permissions(self) -> Result<Response<Message>, anyhow::Error> {
+    async fn execute_ignore_permissions(self) -> Result<Response<Message>, Error> {
         self.await.map_err(|http_err| {
             if http_err.missing_permissions() {
-                anyhow::Error::new(UserError::Ignore)
+                UserError::Ignore.into()
             } else {
                 http_err.into()
             }

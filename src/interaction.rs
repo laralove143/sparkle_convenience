@@ -13,7 +13,7 @@ use twilight_model::{
 };
 
 use crate::{
-    error::{ErrorExt, UserError},
+    error::{Error, ErrorExt, UserError},
     reply::Reply,
     Bot,
 };
@@ -106,10 +106,12 @@ impl InteractionHandle<'_> {
             return;
         }
 
-        if let Err(reply_err) = self.reply(reply).await {
-            if let Some(reply_internal_err) = reply_err.internal::<Custom>() {
-                self.bot.log(reply_internal_err).await;
-            }
+        if let Err(Some(reply_err)) = self
+            .reply(reply)
+            .await
+            .map_err(|err| anyhow::Error::new(err).internal::<Custom>())
+        {
+            self.bot.log(reply_err).await;
         }
 
         if let Some(internal_err) = error.internal::<Custom>() {
@@ -125,9 +127,8 @@ impl InteractionHandle<'_> {
     ///
     /// # Errors
     ///
-    /// Returns [`twilight_http::error::Error`] if deferring the interaction
-    /// fails
-    pub async fn defer(&self, ephemeral: DeferVisibility) -> Result<(), anyhow::Error> {
+    /// Returns [`twilight_http::Error`] if deferring the interaction fails
+    pub async fn defer(&self, ephemeral: DeferVisibility) -> Result<(), twilight_http::Error> {
         let defer_response = InteractionResponse {
             kind: InteractionResponseType::DeferredChannelMessageWithSource,
             data: Some(InteractionResponseData {
@@ -154,12 +155,8 @@ impl InteractionHandle<'_> {
     ///
     /// # Errors
     ///
-    /// Returns an error if the reply is invalid (Refer to
-    /// [`twilight_http::request::application::interaction::CreateFollowup`])
-    ///
-    /// Returns [`twilight_http::error::Error`] if creating the followup
-    /// response fails
-    pub async fn reply(&self, reply: Reply) -> Result<(), anyhow::Error> {
+    /// Returns [`twilight_http::Error`] if creating the followup response fails
+    pub async fn reply(&self, reply: Reply) -> Result<(), twilight_http::Error> {
         self.bot
             .interaction_client()
             .create_response(
@@ -192,11 +189,11 @@ impl InteractionHandle<'_> {
     ///
     /// # Errors
     ///
-    /// Returns an error if the reply is invalid (Refer to
+    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
     /// [`twilight_http::request::application::interaction::CreateFollowup`])
     ///
-    /// Returns [`twilight_http::error::Error`] if creating the response fails
-    pub async fn followup(&self, reply: Reply) -> Result<(), anyhow::Error> {
+    /// Returns [`Error::Http`] if creating the response fails
+    pub async fn followup(&self, reply: Reply) -> Result<(), Error> {
         let client = self.bot.interaction_client();
         let mut followup = client.create_followup(&self.token);
 
@@ -224,11 +221,11 @@ impl InteractionHandle<'_> {
     ///
     /// # Errors
     ///
-    /// Returns [`twilight_http::error::Error`] if creating the response fails
+    /// Returns [`twilight_http::Error`] if creating the response fails
     pub async fn autocomplete(
         &self,
         choices: Vec<CommandOptionChoice>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), twilight_http::Error> {
         self.bot
             .interaction_client()
             .create_response(
@@ -261,13 +258,13 @@ impl InteractionHandle<'_> {
     ///
     /// # Errors
     ///
-    /// Returns [`twilight_http::error::Error`] if creating the response fails
+    /// Returns [`twilight_http::Error`] if creating the response fails
     pub async fn modal(
         &self,
         custom_id: String,
         title: String,
         text_inputs: Vec<TextInput>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), twilight_http::Error> {
         self.bot
             .interaction_client()
             .create_response(

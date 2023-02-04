@@ -30,6 +30,30 @@ impl<T> IntoError<T> for Option<T> {
     }
 }
 
+/// Errors returned in this library
+#[allow(clippy::module_name_repetitions)]
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    /// A [`UserError`] was returned
+    #[error("{0}")]
+    User(#[from] UserError),
+    /// A [`twilight_http::Error`] was returned
+    #[error("{0}")]
+    Http(#[from] twilight_http::Error),
+    /// A [`twilight_http::response::DeserializeBodyError`] was returned
+    #[error("{0}")]
+    DeserializeBody(#[from] twilight_http::response::DeserializeBodyError),
+    /// A [`twilight_gateway::cluster::ClusterStartError`] was returned
+    #[error("{0}")]
+    ClusterStart(#[from] twilight_gateway::cluster::ClusterStartError),
+    /// A [`twilight_validate::request::ValidationError`] was returned
+    #[error("{0}")]
+    RequestValidation(#[from] twilight_validate::request::ValidationError),
+    /// A [`twilight_validate::message::MessageValidationError`] was returned
+    #[error("{0}")]
+    MessageValidation(#[from] twilight_validate::message::MessageValidationError),
+}
+
 /// A user-facing error
 ///
 /// The display implementation on this should not be used
