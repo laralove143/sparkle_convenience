@@ -40,8 +40,8 @@ pub enum UserError {
     /// The bot is missing some required permissions
     ///
     /// `None` when the error occurred outside of
-    /// [`InteractionHandle::check_permissions`] and [`ErrorExt::user`] was
-    /// called instead of [`ErrorExt::with_permissions`]
+    /// [`InteractionHandle::check_permissions`] and
+    /// [`ErrorExt::with_permissions`] wasn't called
     MissingPermissions(Option<Permissions>),
     /// The error is safe to ignore
     ///
@@ -59,6 +59,10 @@ impl Display for UserError {
 impl Error for UserError {}
 
 /// Trait implemented on generic error types with convenience methods
+///
+/// You should prefer these methods only for [`ErrorExt::with_permissions`] or
+/// if [`InteractionHandle::handle_error`] or [`Bot::handle_error`] aren't
+/// enough
 #[allow(clippy::module_name_repetitions)]
 pub trait ErrorExt: Sized {
     /// Extract the user-facing error if this is an error that should be
@@ -94,6 +98,9 @@ pub trait ErrorExt: Sized {
     /// Extract the internal error
     ///
     /// If the error is not a [`UserError`] or `Custom`, returns the error
+    ///
+    /// If you don't have a custom error type, simply pass `()` as the type
+    /// parameter
     fn internal<Custom: Display + Debug + Send + Sync + 'static>(self) -> Option<Self>;
 
     /// Return whether this error should be ignored
@@ -165,12 +172,12 @@ mod tests {
     #[test]
     fn user_err_downcast() {
         let ignore_err = UserError::Ignore;
-        assert_eq!(Some(ignore_err), anyhow::Error::from(ignore_err).user());
+        assert_eq!(Some(ignore_err), anyhow::Error::new(ignore_err).user());
 
         let permissions_err = UserError::MissingPermissions(Some(Permissions::CREATE_INVITE));
         assert_eq!(
             Some(permissions_err),
-            anyhow::Error::from(permissions_err).user()
+            anyhow::Error::new(permissions_err).user()
         );
     }
 
@@ -178,7 +185,7 @@ mod tests {
     fn err_with_permissions() {
         let permissions = Permissions::CREATE_INVITE;
 
-        let mut err = anyhow::Error::from(UserError::MissingPermissions(None));
+        let mut err = anyhow::Error::new(UserError::MissingPermissions(None));
         err.with_permissions(permissions);
         assert_eq!(
             Some(UserError::MissingPermissions(Some(permissions))),
@@ -188,15 +195,15 @@ mod tests {
 
     #[test]
     fn internal_err_downcast() {
-        let user_err = anyhow::Error::from(UserError::Ignore);
+        let user_err = anyhow::Error::new(UserError::Ignore);
         assert!(user_err.internal::<CustomError>().is_none());
 
-        let custom_err = anyhow::Error::from(CustomError::TooSlay);
+        let custom_err = anyhow::Error::new(CustomError::TooSlay);
         assert!(custom_err.internal::<CustomError>().is_none());
 
         assert_eq!(
             Some(&VarError::NotPresent),
-            anyhow::Error::from(VarError::NotPresent)
+            anyhow::Error::new(VarError::NotPresent)
                 .internal::<CustomError>()
                 .as_ref()
                 .and_then(anyhow::Error::downcast_ref)
