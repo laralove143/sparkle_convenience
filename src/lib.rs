@@ -10,7 +10,6 @@
     rustdoc::invalid_html_tags,
     rustdoc::invalid_rust_codeblocks,
     rustdoc::bare_urls,
-    warnings,
     absolute_paths_not_starting_with_crate,
     elided_lifetimes_in_paths,
     explicit_outlives_requirements,
