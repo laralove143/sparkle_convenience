@@ -233,9 +233,16 @@ impl InteractionHandle<'_> {
                     data: Some(InteractionResponseData {
                         custom_id: Some(custom_id),
                         title: Some(title),
-                        components: Some(vec![Component::ActionRow(ActionRow {
-                            components: text_inputs.into_iter().map(Component::TextInput).collect(),
-                        })]),
+                        components: Some(
+                            text_inputs
+                                .into_iter()
+                                .map(|text_input| {
+                                    Component::ActionRow(ActionRow {
+                                        components: vec![Component::TextInput(text_input)],
+                                    })
+                                })
+                                .collect(),
+                        ),
                         allowed_mentions: None,
                         attachments: None,
                         choices: None,
