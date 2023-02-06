@@ -11,7 +11,13 @@ relying on callbacks and mostly following Twilight patterns while making your li
 
 Please have a look at the docs (Code appears better there)
 
-## Looking for Ideas
+## Wanted: Issues
 
 The scope of this project includes anything in Twilight that could be more convenient to use, please make an
 issue for anything that falls under this category!
+
+Same goes for any feedback or suggestions you have
+
+## Support
+
+Join Twilight's Discord server please (Linked at their repository)
