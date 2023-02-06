@@ -110,7 +110,8 @@ pub trait ErrorExt: Sized {
     /// nothing if the error is not [`UserError::MissingPermissions`], so if
     /// the error returns [`UserError::MissingPermissions`] later on, its
     /// permissions will still be `None`
-    fn with_permissions(&mut self, required_permissions: Permissions);
+    #[must_use]
+    fn with_permissions(self, required_permissions: Permissions) -> Self;
 
     /// Extract the internal error
     ///
@@ -142,9 +143,11 @@ impl ErrorExt for anyhow::Error {
         None
     }
 
-    fn with_permissions(&mut self, required_permissions: Permissions) {
+    fn with_permissions(self, required_permissions: Permissions) -> Self {
         if let Some(UserError::MissingPermissions(_)) = self.user() {
-            *self = UserError::MissingPermissions(Some(required_permissions)).into();
+            UserError::MissingPermissions(Some(required_permissions)).into()
+        } else {
+            self
         }
     }
 
@@ -202,8 +205,8 @@ mod tests {
     fn err_with_permissions() {
         let permissions = Permissions::CREATE_INVITE;
 
-        let mut err = anyhow::Error::new(UserError::MissingPermissions(None));
-        err.with_permissions(permissions);
+        let err =
+            anyhow::Error::new(UserError::MissingPermissions(None)).with_permissions(permissions);
         assert_eq!(
             Some(UserError::MissingPermissions(Some(permissions))),
             err.user()
