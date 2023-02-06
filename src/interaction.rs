@@ -53,23 +53,6 @@ pub struct InteractionHandle<'bot> {
     responded: Arc<Mutex<bool>>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[allow(clippy::module_name_repetitions)]
-/// An error returned by the crate when responding to interactions
-pub enum InteractionError {
-    /// A response that has to be the first was called on a responded
-    /// interaction
-    AlreadyResponded,
-}
-
-impl Display for InteractionError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("a response that has to be the first was called on a responded interaction")
-    }
-}
-
-impl ErrorTrait for InteractionError {}
-
 impl Bot {
     /// Return an interaction's handle
     #[must_use]

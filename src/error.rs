@@ -37,6 +37,10 @@ pub enum Error {
     /// A [`UserError`] was returned
     #[error("{0}")]
     User(#[from] UserError),
+    /// A response that has to be the first was called on a responded
+    /// interaction
+    #[error("a response that has to be the first was called on a responded interaction")]
+    AlreadyResponded,
     /// A [`twilight_http::Error`] was returned
     #[error("{0}")]
     Http(#[from] twilight_http::Error),
