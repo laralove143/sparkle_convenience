@@ -163,6 +163,9 @@ impl InteractionHandle<'_> {
 
     /// Reply to this command
     ///
+    /// If the interaction was already responded to, makes a followup response,
+    /// otherwise responds to the interaction with a message
+    ///
     /// Discord gives 3 seconds of deadline to respond to an interaction, if the
     /// reply might take longer, consider using [`Self::defer`] before this
     /// method
