@@ -98,8 +98,10 @@
 //!         // Say this is a user command
 //!         let _very_respected_user = interaction.data.ok()?.command().ok()?.target_id.ok()?;
 //!         // There are similar methods for autocomplete and modal responses
+//!         // The handle tracks whether the interaction was responded to
+//!         // and creates a followup or a message response accordingly
 //!         handle
-//!             .followup(
+//!             .reply(
 //!                 Reply::new()
 //!                     .ephemeral()
 //!                     .content("You have -1 respect now".to_owned()),
