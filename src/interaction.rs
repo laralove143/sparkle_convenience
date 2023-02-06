@@ -317,3 +317,22 @@ impl InteractionHandle<'_> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use futures::lock::Mutex;
+
+    #[tokio::test]
+    async fn responded_preserved() {
+        let responded = Arc::new(Mutex::new(false));
+        let responded_clone = responded.clone();
+
+        let mut responded_mut = responded.lock().await;
+        *responded_mut = true;
+        drop(responded_mut);
+
+        assert!(*responded_clone.lock().await);
+    }
+}
