@@ -1,5 +1,10 @@
-use std::fmt::{Debug, Display};
+use std::{
+    error::Error as ErrorTrait,
+    fmt::{Debug, Display, Formatter},
+    sync::Arc,
+};
 
+use tokio::sync::Mutex;
 use twilight_http::client::InteractionClient;
 use twilight_model::{
     application::{command::CommandOptionChoice, interaction::Interaction},
@@ -44,7 +49,26 @@ pub struct InteractionHandle<'bot> {
     token: String,
     /// The bot's permissions
     app_permissions: Permissions,
+    /// Whether the interaction was already responded to
+    responded: Arc<Mutex<bool>>,
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[allow(clippy::module_name_repetitions)]
+/// An error returned by the crate when responding to interactions
+pub enum InteractionError {
+    /// A response that has to be the first was called on a responded
+    /// interaction
+    AlreadyResponded,
+}
+
+impl Display for InteractionError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("a response that has to be the first was called on a responded interaction")
+    }
+}
+
+impl ErrorTrait for InteractionError {}
 
 impl Bot {
     /// Return an interaction's handle
@@ -55,6 +79,7 @@ impl Bot {
             id: interaction.id,
             token: interaction.token.clone(),
             app_permissions: interaction.app_permissions.unwrap_or(Permissions::all()),
+            responded: Arc::new(Mutex::new(false)),
         }
     }
 
@@ -121,14 +146,21 @@ impl InteractionHandle<'_> {
 
     /// Defer the interaction
     ///
-    /// Make sure you haven't sent any response before this
-    ///
     /// The `ephemeral` parameter only affects the first [`Self::reply`]
     ///
     /// # Errors
     ///
+    /// Returns [`InteractionError::AlreadyResponded`] if this is not the first
+    /// response to the interaction
+    ///
     /// Returns [`twilight_http::Error`] if deferring the interaction fails
     pub async fn defer(&self, ephemeral: DeferVisibility) -> Result<(), twilight_http::Error> {
+        let mut responded = self.responded.lock().await;
+
+        if *responded {
+            return Err(InteractionError::AlreadyResponded.into());
+        }
+
         let defer_response = InteractionResponse {
             kind: InteractionResponseType::DeferredChannelMessageWithSource,
             data: Some(InteractionResponseData {
@@ -142,90 +174,93 @@ impl InteractionHandle<'_> {
             .create_response(self.id, &self.token, &defer_response)
             .await?;
 
+        *responded = true;
+
         Ok(())
     }
 
     /// Reply to this command
     ///
-    /// Make sure you haven't sent any response before this
-    ///
     /// Discord gives 3 seconds of deadline to respond to an interaction, if the
-    /// reply might take longer, consider using [`Self::defer`] then
-    /// [`Self::followup`]
+    /// reply might take longer, consider using [`Self::defer`] before this
+    /// method
     ///
     /// # Errors
     ///
-    /// Returns [`twilight_http::Error`] if creating the followup response fails
-    pub async fn reply(&self, reply: Reply) -> Result<(), twilight_http::Error> {
-        self.bot
-            .interaction_client()
-            .create_response(
-                self.id,
-                &self.token,
-                &InteractionResponse {
-                    kind: InteractionResponseType::ChannelMessageWithSource,
-                    data: Some(InteractionResponseData {
-                        content: Some(reply.content),
-                        embeds: Some(reply.embeds),
-                        components: Some(reply.components),
-                        attachments: Some(reply.attachments),
-                        flags: Some(reply.flags),
-                        tts: Some(reply.tts),
-                        allowed_mentions: reply.allowed_mentions.flatten(),
-                        choices: None,
-                        custom_id: None,
-                        title: None,
-                    }),
-                },
-            )
-            .await?;
-
-        Ok(())
-    }
-
-    /// Update the command's response
-    ///
-    /// Make sure you have called [`Self::defer`] or [`Self::reply`] first
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
+    /// Returns an error if the reply is invalid (Refer to
     /// [`twilight_http::request::application::interaction::CreateFollowup`])
     ///
-    /// Returns [`Error::Http`] if creating the response fails
-    pub async fn followup(&self, reply: Reply) -> Result<(), Error> {
-        let client = self.bot.interaction_client();
-        let mut followup = client.create_followup(&self.token);
+    /// Returns [`twilight_http::error::Error`] if creating the followup
+    /// response fails
+    pub async fn reply(&self, reply: Reply) -> Result<(), anyhow::Error> {
+        let mut responded = self.responded.lock().await;
 
-        if !reply.content.is_empty() {
-            followup = followup.content(&reply.content)?;
-        }
-        if let Some(allowed_mentions) = &reply.allowed_mentions {
-            followup = followup.allowed_mentions(allowed_mentions.as_ref());
-        }
+        if *responded {
+            let client = self.bot.interaction_client();
+            let mut followup = client.create_followup(&self.token);
 
-        followup
-            .embeds(&reply.embeds)?
-            .components(&reply.components)?
-            .attachments(&reply.attachments)?
-            .flags(reply.flags)
-            .tts(reply.tts)
-            .await?;
+            if !reply.content.is_empty() {
+                followup = followup.content(&reply.content)?;
+            }
+            if let Some(allowed_mentions) = &reply.allowed_mentions {
+                followup = followup.allowed_mentions(allowed_mentions.as_ref());
+            }
+
+            followup
+                .embeds(&reply.embeds)?
+                .components(&reply.components)?
+                .attachments(&reply.attachments)?
+                .flags(reply.flags)
+                .tts(reply.tts)
+                .await?;
+        } else {
+            self.bot
+                .interaction_client()
+                .create_response(
+                    self.id,
+                    &self.token,
+                    &InteractionResponse {
+                        kind: InteractionResponseType::ChannelMessageWithSource,
+                        data: Some(InteractionResponseData {
+                            content: Some(reply.content),
+                            embeds: Some(reply.embeds),
+                            components: Some(reply.components),
+                            attachments: Some(reply.attachments),
+                            flags: Some(reply.flags),
+                            tts: Some(reply.tts),
+                            allowed_mentions: reply.allowed_mentions.flatten(),
+                            choices: None,
+                            custom_id: None,
+                            title: None,
+                        }),
+                    },
+                )
+                .await?;
+
+            *responded = true;
+        }
 
         Ok(())
     }
 
     /// Respond to this command with autocomplete suggestions
     ///
-    /// No response is allowed before or after this
-    ///
     /// # Errors
+    ///
+    /// Returns [`InteractionError::AlreadyResponded`] if this is not the first
+    /// response to the interaction
     ///
     /// Returns [`twilight_http::Error`] if creating the response fails
     pub async fn autocomplete(
         &self,
         choices: Vec<CommandOptionChoice>,
-    ) -> Result<(), twilight_http::Error> {
+    ) -> Result<(), anyhow::Error> {
+        let mut responded = self.responded.lock().await;
+
+        if *responded {
+            return Err(InteractionError::AlreadyResponded.into());
+        }
+
         self.bot
             .interaction_client()
             .create_response(
@@ -249,22 +284,31 @@ impl InteractionHandle<'_> {
             )
             .await?;
 
+        *responded = true;
+
         Ok(())
     }
 
     /// Respond to this command with a modal
     ///
-    /// No response is allowed before or after this
-    ///
     /// # Errors
     ///
-    /// Returns [`twilight_http::Error`] if creating the response fails
+    /// Returns [`InteractionError::AlreadyResponded`] if this is not the first
+    /// response to the interaction
+    ///
+    /// Returns [`twilight_http::error::Error`] if creating the response fails
     pub async fn modal(
         &self,
         custom_id: String,
         title: String,
         text_inputs: Vec<TextInput>,
-    ) -> Result<(), twilight_http::Error> {
+    ) -> Result<(), anyhow::Error> {
+        let mut responded = self.responded.lock().await;
+
+        if *responded {
+            return Err(InteractionError::AlreadyResponded.into());
+        }
+
         self.bot
             .interaction_client()
             .create_response(
@@ -297,6 +341,27 @@ impl InteractionHandle<'_> {
             )
             .await?;
 
+        *responded = true;
+
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use futures::lock::Mutex;
+
+    #[tokio::test]
+    async fn responded_preserved() {
+        let responded = Arc::new(Mutex::new(false));
+        let responded_clone = responded.clone();
+
+        let mut responded_mut = responded.lock().await;
+        *responded_mut = true;
+        drop(responded_mut);
+
+        assert!(*responded_clone.lock().await);
     }
 }
