@@ -98,7 +98,8 @@ impl InteractionHandle<'_> {
     /// based on the error
     ///
     /// The type parameter `Custom` is used to determine if the error is
-    /// internal
+    /// internal, if you don't have a custom error type, simply pass `()` as the
+    /// type parameter
     ///
     /// - If the given error should be ignored, simply returns early
     /// - Tries to reply to the interaction with the given reply, if it fails

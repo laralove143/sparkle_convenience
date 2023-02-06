@@ -26,7 +26,8 @@ impl Bot {
     /// based on the error
     ///
     /// The type parameter `Custom` is used to determine if the error is
-    /// internal
+    /// internal, if you don't have a custom error type, simply pass `()` as the
+    /// type parameter
     ///
     /// - If the given error should be ignored, simply returns early
     /// - Tries to send the given reply to the channel, if it fails and the
