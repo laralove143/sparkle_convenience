@@ -103,6 +103,9 @@ impl InteractionHandle<'_> {
     ///
     /// # Errors
     ///
+    /// Returns [`InteractionError::AlreadyResponded`] if this is not the first
+    /// response to the interaction
+    ///
     /// Returns [`twilight_http::error::Error`] if deferring the interaction
     /// fails
     pub async fn defer(&self, ephemeral: bool) -> Result<(), anyhow::Error> {
@@ -215,6 +218,9 @@ impl InteractionHandle<'_> {
     ///
     /// # Errors
     ///
+    /// Returns [`InteractionError::AlreadyResponded`] if this is not the first
+    /// response to the interaction
+    ///
     /// Returns [`twilight_http::error::Error`] if creating the response fails
     pub async fn autocomplete(
         &self,
@@ -257,6 +263,9 @@ impl InteractionHandle<'_> {
     /// Respond to this command with a modal
     ///
     /// # Errors
+    ///
+    /// Returns [`InteractionError::AlreadyResponded`] if this is not the first
+    /// response to the interaction
     ///
     /// Returns [`twilight_http::error::Error`] if creating the response fails
     pub async fn modal(
