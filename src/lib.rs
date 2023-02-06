@@ -163,13 +163,17 @@
 //! }
 //!
 //! async fn handle_message(bot: &Bot, message: Message) {
-//!     if let Err(mut err) = wave(&bot.http, message.channel_id, message.id).await {
-//!         // Not needed in interactions thanks to `InteractionHandle::check_permissions`
-//!         err.with_permissions(Permissions::READ_MESSAGE_HISTORY | Permissions::ADD_REACTIONS);
-//!
-//!         /// Similar method exists for `InteractionHandle`
-//!         bot.handle_error::<CustomError>(message.channel_id, err_reply(&err), err)
-//!             .await;
+//!     if let Err(err) = wave(&bot.http, message.channel_id, message.id).await {
+//!         // Similar method exists for `InteractionHandle`
+//!         bot.handle_error::<CustomError>(
+//!             message.channel_id,
+//!             err_reply(&err),
+//!             // Not needed in interactions thanks to `InteractionHandle::check_permissions`
+//!             err.with_permissions(
+//!                 Permissions::READ_MESSAGE_HISTORY | Permissions::ADD_REACTIONS,
+//!             ),
+//!         )
+//!         .await;
 //!     }
 //! }
 //!
