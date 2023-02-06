@@ -1,6 +1,5 @@
 use std::{
-    error::Error as ErrorTrait,
-    fmt::{Debug, Display, Formatter},
+    fmt::{Debug, Display},
     sync::Arc,
 };
 
@@ -133,15 +132,15 @@ impl InteractionHandle<'_> {
     ///
     /// # Errors
     ///
-    /// Returns [`InteractionError::AlreadyResponded`] if this is not the first
+    /// Returns [`Error::AlreadyResponded`] if this is not the first
     /// response to the interaction
     ///
-    /// Returns [`twilight_http::Error`] if deferring the interaction fails
-    pub async fn defer(&self, ephemeral: DeferVisibility) -> Result<(), twilight_http::Error> {
+    /// Returns [`Error::Http`] if deferring the interaction fails
+    pub async fn defer(&self, ephemeral: DeferVisibility) -> Result<(), Error> {
         let mut responded = self.responded.lock().await;
 
         if *responded {
-            return Err(InteractionError::AlreadyResponded.into());
+            return Err(Error::AlreadyResponded);
         }
 
         let defer_response = InteractionResponse {
@@ -170,12 +169,12 @@ impl InteractionHandle<'_> {
     ///
     /// # Errors
     ///
-    /// Returns an error if the reply is invalid (Refer to
+    /// Returns [`Error::RequestValidation`] if the reply is invalid (Refer to
     /// [`twilight_http::request::application::interaction::CreateFollowup`])
     ///
-    /// Returns [`twilight_http::error::Error`] if creating the followup
+    /// Returns [`Error::Http`] if creating the followup
     /// response fails
-    pub async fn reply(&self, reply: Reply) -> Result<(), anyhow::Error> {
+    pub async fn reply(&self, reply: Reply) -> Result<(), Error> {
         let mut responded = self.responded.lock().await;
 
         if *responded {
@@ -230,18 +229,15 @@ impl InteractionHandle<'_> {
     ///
     /// # Errors
     ///
-    /// Returns [`InteractionError::AlreadyResponded`] if this is not the first
+    /// Returns [`Error::AlreadyResponded`] if this is not the first
     /// response to the interaction
     ///
-    /// Returns [`twilight_http::Error`] if creating the response fails
-    pub async fn autocomplete(
-        &self,
-        choices: Vec<CommandOptionChoice>,
-    ) -> Result<(), anyhow::Error> {
+    /// Returns [`Error::Http`] if creating the response fails
+    pub async fn autocomplete(&self, choices: Vec<CommandOptionChoice>) -> Result<(), Error> {
         let mut responded = self.responded.lock().await;
 
         if *responded {
-            return Err(InteractionError::AlreadyResponded.into());
+            return Err(Error::AlreadyResponded);
         }
 
         self.bot
@@ -276,20 +272,20 @@ impl InteractionHandle<'_> {
     ///
     /// # Errors
     ///
-    /// Returns [`InteractionError::AlreadyResponded`] if this is not the first
+    /// Returns [`Error::AlreadyResponded`] if this is not the first
     /// response to the interaction
     ///
-    /// Returns [`twilight_http::error::Error`] if creating the response fails
+    /// Returns [`Error::Http`] if creating the response fails
     pub async fn modal(
         &self,
         custom_id: String,
         title: String,
         text_inputs: Vec<TextInput>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), Error> {
         let mut responded = self.responded.lock().await;
 
         if *responded {
-            return Err(InteractionError::AlreadyResponded.into());
+            return Err(Error::AlreadyResponded);
         }
 
         self.bot
