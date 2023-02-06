@@ -22,4 +22,3 @@ twilight-validate = "0.15"
 
 [dev-dependencies]
 tokio = { version = "1.25", features = ["macros"] }
-futures = "0.3"

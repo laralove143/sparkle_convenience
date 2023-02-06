@@ -241,8 +241,6 @@
 use std::fmt::Debug;
 
 use error::Error;
-#[cfg(test)]
-use futures as _;
 use log::DisplayFormat;
 use twilight_gateway::{stream, ConfigBuilder, EventTypeFlags, Intents, Shard};
 use twilight_http::Client;

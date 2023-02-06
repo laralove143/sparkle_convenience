@@ -333,7 +333,7 @@ impl InteractionHandle<'_> {
 mod tests {
     use std::sync::Arc;
 
-    use futures::lock::Mutex;
+    use tokio::sync::Mutex;
 
     #[tokio::test]
     async fn responded_preserved() {
