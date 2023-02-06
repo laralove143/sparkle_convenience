@@ -194,34 +194,19 @@ impl InteractionHandle<'_> {
         Ok(())
     }
 
-    /// Update the command's response
+    /// # Deprecated
     ///
-    /// Make sure you have called [`Self::defer`] or [`Self::reply`] first
+    /// This function simply calls [`Self::reply`], which is safe to use both as
+    /// a first reply and a followup, it will be removed at the next major
+    /// version
     ///
     /// # Errors
     ///
-    /// Returns an error if the reply is invalid (Refer to
-    /// [`twilight_http::request::application::interaction::CreateFollowup`])
-    ///
-    /// Returns [`twilight_http::error::Error`] if creating the response fails
+    /// Refer to the documentation of [`Self::reply`]
+    #[deprecated = "This function simply calls `Self::reply`, which is safe to use both as a first \
+                    reply and a followup, it will be removed at the next major version"]
     pub async fn followup(&self, reply: Reply) -> Result<(), anyhow::Error> {
-        let client = self.bot.interaction_client();
-        let mut followup = client.create_followup(&self.token);
-
-        if !reply.content.is_empty() {
-            followup = followup.content(&reply.content)?;
-        }
-        if let Some(allowed_mentions) = &reply.allowed_mentions {
-            followup = followup.allowed_mentions(allowed_mentions.as_ref());
-        }
-
-        followup
-            .embeds(&reply.embeds)?
-            .components(&reply.components)?
-            .attachments(&reply.attachments)?
-            .flags(reply.flags)
-            .tts(reply.tts)
-            .await?;
+        self.reply(reply).await?;
 
         Ok(())
     }
