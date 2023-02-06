@@ -99,8 +99,6 @@ impl InteractionHandle<'_> {
 
     /// Defer the interaction
     ///
-    /// Make sure you haven't sent any response before this
-    ///
     /// The `ephemeral` parameter only affects the first [`Self::reply`]
     ///
     /// # Errors
@@ -134,11 +132,9 @@ impl InteractionHandle<'_> {
 
     /// Reply to this command
     ///
-    /// Make sure you haven't sent any response before this
-    ///
     /// Discord gives 3 seconds of deadline to respond to an interaction, if the
-    /// reply might take longer, consider using [`Self::defer`] then
-    /// [`Self::followup`]
+    /// reply might take longer, consider using [`Self::defer`] before this
+    /// method
     ///
     /// # Errors
     ///
@@ -232,8 +228,6 @@ impl InteractionHandle<'_> {
 
     /// Respond to this command with autocomplete suggestions
     ///
-    /// No response is allowed before or after this
-    ///
     /// # Errors
     ///
     /// Returns [`twilight_http::error::Error`] if creating the response fails
@@ -276,8 +270,6 @@ impl InteractionHandle<'_> {
     }
 
     /// Respond to this command with a modal
-    ///
-    /// No response is allowed before or after this
     ///
     /// # Errors
     ///
