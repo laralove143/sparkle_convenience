@@ -238,19 +238,19 @@
 //! # }
 //! ```
 
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 
+use error::Error;
 #[cfg(test)]
 use futures as _;
-use twilight_gateway::{cluster::Events, Cluster, EventTypeFlags, Intents};
+use log::DisplayFormat;
+use twilight_gateway::{stream, ConfigBuilder, EventTypeFlags, Intents, Shard};
 use twilight_http::Client;
 use twilight_model::{
     id::{marker::WebhookMarker, Id},
     oauth::Application,
     user::CurrentUser,
 };
-
-use crate::{error::Error, log::DisplayFormat};
 
 /// Error types, convenience methods on other errors
 pub mod error;
@@ -273,8 +273,6 @@ pub mod webhook;
 pub struct Bot {
     /// Twilight's HTTP client
     pub http: Client,
-    /// Twilight's gateway cluster
-    pub cluster: Arc<Cluster>,
     /// The application info of the bot
     pub application: Application,
     /// The user info of the bot
@@ -297,6 +295,9 @@ impl Bot {
     /// By default [`Self::log`] only prints the message, see
     /// [`Self::set_logging_channel`] and [`Self::set_logging_file`]
     ///
+    /// If you need more customization, every field of [`Bot`] is public so you
+    /// can create it with a struct literal
+    ///
     /// # Errors
     ///
     /// Returns [`Error::ClusterStart`] if creating the cluster fails
@@ -311,25 +312,25 @@ impl Bot {
         token: String,
         intents: Intents,
         event_types: EventTypeFlags,
-    ) -> Result<(Self, Events), Error> {
-        let (cluster, events) = Cluster::builder(token.clone(), intents)
-            .event_types(event_types)
-            .build()
-            .await?;
-        let cluster_arc = Arc::new(cluster);
-        let cluster_spawn = Arc::clone(&cluster_arc);
-        tokio::spawn(async move {
-            cluster_spawn.up().await;
-        });
-
+    ) -> Result<(Self, Vec<Shard>), Error> {
         let http = Client::new(token.clone());
+
+        let shards = stream::create_recommended(
+            &http,
+            ConfigBuilder::new(token.clone(), intents)
+                .event_types(event_types)
+                .build(),
+            |_, config_builder| config_builder.build(),
+        )
+        .await?
+        .collect::<Vec<Shard>>();
+
         let application = http.current_user_application().await?.model().await?;
         let user = http.current_user().await?.model().await?;
 
         Ok((
             Self {
                 http,
-                cluster: cluster_arc,
                 application,
                 user,
                 logging_format: DisplayFormat::Display,
@@ -337,7 +338,7 @@ impl Bot {
                 logging_webhook: None,
                 logging_file_path: None,
             },
-            events,
+            shards,
         ))
     }
 }

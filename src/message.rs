@@ -104,7 +104,7 @@ pub trait CreateMessageExt<'a>: Sized {
     /// Returns [`Error::Http`] if creating the response fails and the error is
     /// not [`HttpErrorExt::missing_permissions`]
     ///
-    /// Returns [`Error::UserError`] with [`UserError::Ignore`] if the error is
+    /// Returns [`Error::User`] with [`UserError::Ignore`] if the error is
     /// [`HttpErrorExt::missing_permissions`]
     async fn execute_ignore_permissions(self) -> Result<Response<Message>, Error>;
 }
