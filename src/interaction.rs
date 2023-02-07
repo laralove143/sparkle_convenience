@@ -98,8 +98,8 @@ impl InteractionHandle<'_> {
     /// based on the error
     ///
     /// The type parameter `Custom` is used to determine if the error is
-    /// internal, if you don't have a custom error type, simply pass `()` as the
-    /// type parameter
+    /// internal, if you don't have a custom error type, you can use
+    /// [`Self::handle_error_no_custom`]
     ///
     /// - If the given error should be ignored, simply returns early
     /// - Tries to reply to the interaction with the given reply, if it fails
@@ -123,6 +123,27 @@ impl InteractionHandle<'_> {
         }
 
         if let Some(internal_err) = error.internal::<Custom>() {
+            self.bot.log(internal_err).await;
+        }
+    }
+
+    /// Handle an error without checking for a custom error type
+    ///
+    /// See [`Self::handle_error`] for more information
+    pub async fn handle_error_no_custom(&self, reply: Reply, error: anyhow::Error) {
+        if error.ignore() {
+            return;
+        }
+
+        if let Err(Some(reply_err)) = self
+            .reply(reply)
+            .await
+            .map_err(|err| anyhow::Error::new(err).internal_no_custom())
+        {
+            self.bot.log(reply_err).await;
+        }
+
+        if let Some(internal_err) = error.internal_no_custom() {
             self.bot.log(internal_err).await;
         }
     }

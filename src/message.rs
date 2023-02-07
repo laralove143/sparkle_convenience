@@ -26,8 +26,8 @@ impl Bot {
     /// based on the error
     ///
     /// The type parameter `Custom` is used to determine if the error is
-    /// internal, if you don't have a custom error type, simply pass `()` as the
-    /// type parameter
+    /// internal, if you don't have a custom error type, you can use
+    /// [`Self::handle_error_no_custom`]
     ///
     /// - If the given error should be ignored, simply returns early
     /// - Tries to send the given reply to the channel, if it fails and the
@@ -55,6 +55,35 @@ impl Bot {
         }
 
         if let Some(internal_err) = error.internal::<Custom>() {
+            self.log(internal_err).await;
+        }
+    }
+
+    /// Handle an error without checking for a custom error type
+    ///
+    /// See [`Self::handle_error`] for more information
+    pub async fn handle_error_no_custom(
+        &self,
+        channel_id: Id<ChannelMarker>,
+        reply: Reply,
+        error: anyhow::Error,
+    ) {
+        if error.ignore() {
+            return;
+        }
+
+        let create_message_res = match self.http.create_message(channel_id).with_reply(&reply) {
+            Ok(create) => create.await.map_err(anyhow::Error::new),
+            Err(validation_err) => Err(anyhow::Error::new(validation_err)),
+        };
+
+        if let Err(Some(create_message_err)) =
+            create_message_res.map_err(ErrorExt::internal_no_custom)
+        {
+            self.log(create_message_err).await;
+        }
+
+        if let Some(internal_err) = error.internal_no_custom() {
             self.log(internal_err).await;
         }
     }

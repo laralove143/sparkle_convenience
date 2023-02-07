@@ -120,10 +120,12 @@ pub trait ErrorExt: Sized {
     /// Extract the internal error
     ///
     /// If the error is not a [`UserError`] or `Custom`, returns the error
-    ///
-    /// If you don't have a custom error type, simply pass `()` as the type
-    /// parameter
     fn internal<Custom: Display + Debug + Send + Sync + 'static>(self) -> Option<Self>;
+
+    /// Extract the internal error without checking for a custom error type
+    ///
+    /// If the error is not a [`UserError`], returns the error
+    fn internal_no_custom(self) -> Option<Self>;
 
     /// Return whether this error should be ignored
     fn ignore(&self) -> bool;
@@ -157,6 +159,14 @@ impl ErrorExt for anyhow::Error {
 
     fn internal<Custom: Display + Debug + Send + Sync + 'static>(self) -> Option<Self> {
         if self.user().is_none() && self.downcast_ref::<Custom>().is_none() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
+    fn internal_no_custom(self) -> Option<Self> {
+        if self.user().is_none() {
             Some(self)
         } else {
             None
