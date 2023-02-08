@@ -6,7 +6,10 @@ use std::{
 use tokio::sync::Mutex;
 use twilight_http::client::InteractionClient;
 use twilight_model::{
-    application::{command::CommandOptionChoice, interaction::Interaction},
+    application::{
+        command::CommandOptionChoice,
+        interaction::{Interaction, InteractionType},
+    },
     channel::message::{
         component::{ActionRow, TextInput},
         Component, MessageFlags,
@@ -46,6 +49,8 @@ pub struct InteractionHandle<'bot> {
     id: Id<InteractionMarker>,
     /// The interaction's token
     token: String,
+    /// The interaction's type
+    kind: InteractionType,
     /// The bot's permissions
     app_permissions: Permissions,
     /// Whether the interaction was already responded to
@@ -60,6 +65,7 @@ impl Bot {
             bot: self,
             id: interaction.id,
             token: interaction.token.clone(),
+            kind: interaction.kind,
             app_permissions: interaction.app_permissions.unwrap_or(Permissions::all()),
             responded: Arc::new(Mutex::new(false)),
         }
@@ -114,11 +120,17 @@ impl InteractionHandle<'_> {
             return;
         }
 
-        if let Err(Some(reply_err)) = self
-            .reply(reply)
-            .await
-            .map_err(|err| anyhow::Error::new(err).internal::<Custom>())
-        {
+        let reply_res = if matches!(
+            self.kind,
+            InteractionType::MessageComponent | InteractionType::ModalSubmit
+        ) {
+            self.update_message(reply).await
+        } else {
+            self.reply(reply).await
+        }
+        .map_err(|err| anyhow::Error::new(err).internal::<Custom>());
+
+        if let Err(Some(reply_err)) = reply_res {
             self.bot.log(reply_err).await;
         }
 
