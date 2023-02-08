@@ -185,6 +185,36 @@ impl InteractionHandle<'_> {
         Ok(())
     }
 
+    /// Defer the interaction before calling [`Self::update_message`]
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::AlreadyResponded`] if this is not the first
+    /// response to the interaction
+    ///
+    /// Returns [`Error::Http`] if deferring the interaction fails
+    pub async fn defer_update_message(&self) -> Result<(), Error> {
+        let mut responded = self.responded.lock().await;
+
+        if *responded {
+            return Err(Error::AlreadyResponded);
+        }
+
+        let defer_response = InteractionResponse {
+            kind: InteractionResponseType::DeferredUpdateMessage,
+            data: None,
+        };
+
+        self.bot
+            .interaction_client()
+            .create_response(self.id, &self.token, &defer_response)
+            .await?;
+
+        *responded = true;
+
+        Ok(())
+    }
+
     /// Reply to this command
     ///
     /// In component interactions, this sends another message
