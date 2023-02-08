@@ -150,6 +150,8 @@ impl InteractionHandle<'_> {
 
     /// Defer the interaction
     ///
+    /// In component interactions, this sends another message
+    ///
     /// The `ephemeral` parameter only affects the first [`Self::reply`]
     ///
     /// # Errors
@@ -184,6 +186,8 @@ impl InteractionHandle<'_> {
     }
 
     /// Reply to this command
+    ///
+    /// In component interactions, this sends another message
     ///
     /// If the interaction was already responded to, makes a followup response,
     /// otherwise responds to the interaction with a message
