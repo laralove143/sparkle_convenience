@@ -251,6 +251,39 @@ impl InteractionHandle<'_> {
         Ok(())
     }
 
+    /// Update the message the component is attached to
+    ///
+    /// Only available for components and modals
+    ///
+    /// If the interaction was already responded to, makes a followup response,
+    /// otherwise responds to the interaction with a message update
+    ///
+    /// Discord gives 3 seconds of deadline to respond to an interaction, if the
+    /// reply might take longer, consider using [`Self::defer_update_message`]
+    /// before this method
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::RequestValidation`] if the reply is invalid (Refer to
+    /// [`twilight_http::request::application::interaction::CreateFollowup`])
+    ///
+    /// Returns [`Error::Http`] if creating the followup
+    /// response fails
+    pub async fn update_message(&self, reply: Reply) -> Result<(), Error> {
+        let mut responded = self.responded.lock().await;
+
+        if *responded {
+            self.followup_with_reply(reply).await?;
+        } else {
+            self.create_response_with_reply(reply, InteractionResponseType::UpdateMessage)
+                .await?;
+
+            *responded = true;
+        }
+
+        Ok(())
+    }
+
     /// Respond to this command with autocomplete suggestions
     ///
     /// # Errors
