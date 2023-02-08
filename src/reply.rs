@@ -1,6 +1,6 @@
 use twilight_model::{
     channel::message::{AllowedMentions, Component, Embed, MessageFlags},
-    http::attachment::Attachment,
+    http::{attachment::Attachment, interaction::InteractionResponseData},
 };
 
 /// The message to reply to the interaction with
@@ -19,6 +19,23 @@ pub struct Reply {
 impl Default for Reply {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl From<Reply> for InteractionResponseData {
+    fn from(reply: Reply) -> Self {
+        Self {
+            content: Some(reply.content),
+            embeds: Some(reply.embeds),
+            components: Some(reply.components),
+            attachments: Some(reply.attachments),
+            flags: Some(reply.flags),
+            tts: Some(reply.tts),
+            allowed_mentions: reply.allowed_mentions.flatten(),
+            choices: None,
+            custom_id: None,
+            title: None,
+        }
     }
 }
 
