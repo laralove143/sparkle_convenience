@@ -207,46 +207,13 @@ impl InteractionHandle<'_> {
         let mut responded = self.responded.lock().await;
 
         if *responded {
-            let client = self.bot.interaction_client();
-            let mut followup = client.create_followup(&self.token);
-
-            if !reply.content.is_empty() {
-                followup = followup.content(&reply.content)?;
-            }
-            if let Some(allowed_mentions) = &reply.allowed_mentions {
-                followup = followup.allowed_mentions(allowed_mentions.as_ref());
-            }
-
-            followup
-                .embeds(&reply.embeds)?
-                .components(&reply.components)?
-                .attachments(&reply.attachments)?
-                .flags(reply.flags)
-                .tts(reply.tts)
-                .await?;
+            self.followup_with_reply(reply).await?;
         } else {
-            self.bot
-                .interaction_client()
-                .create_response(
-                    self.id,
-                    &self.token,
-                    &InteractionResponse {
-                        kind: InteractionResponseType::ChannelMessageWithSource,
-                        data: Some(InteractionResponseData {
-                            content: Some(reply.content),
-                            embeds: Some(reply.embeds),
-                            components: Some(reply.components),
-                            attachments: Some(reply.attachments),
-                            flags: Some(reply.flags),
-                            tts: Some(reply.tts),
-                            allowed_mentions: reply.allowed_mentions.flatten(),
-                            choices: None,
-                            custom_id: None,
-                            title: None,
-                        }),
-                    },
-                )
-                .await?;
+            self.create_response_with_reply(
+                reply,
+                InteractionResponseType::ChannelMessageWithSource,
+            )
+            .await?;
 
             *responded = true;
         }
@@ -350,6 +317,48 @@ impl InteractionHandle<'_> {
             .await?;
 
         *responded = true;
+
+        Ok(())
+    }
+
+    async fn create_response_with_reply(
+        &self,
+        reply: Reply,
+        kind: InteractionResponseType,
+    ) -> Result<(), Error> {
+        self.bot
+            .interaction_client()
+            .create_response(
+                self.id,
+                &self.token,
+                &InteractionResponse {
+                    kind,
+                    data: Some(reply.into()),
+                },
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    async fn followup_with_reply(&self, reply: Reply) -> Result<(), Error> {
+        let client = self.bot.interaction_client();
+        let mut followup = client.create_followup(&self.token);
+
+        if !reply.content.is_empty() {
+            followup = followup.content(&reply.content)?;
+        }
+        if let Some(allowed_mentions) = &reply.allowed_mentions {
+            followup = followup.allowed_mentions(allowed_mentions.as_ref());
+        }
+
+        followup
+            .embeds(&reply.embeds)?
+            .components(&reply.components)?
+            .attachments(&reply.attachments)?
+            .flags(reply.flags)
+            .tts(reply.tts)
+            .await?;
 
         Ok(())
     }
