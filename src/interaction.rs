@@ -237,7 +237,23 @@ impl InteractionHandle<'_> {
         let mut responded = self.responded.lock().await;
 
         if *responded {
-            self.followup_with_reply(reply).await?;
+            let client = self.bot.interaction_client();
+            let mut followup = client.create_followup(&self.token);
+
+            if !reply.content.is_empty() {
+                followup = followup.content(&reply.content)?;
+            }
+            if let Some(allowed_mentions) = &reply.allowed_mentions {
+                followup = followup.allowed_mentions(allowed_mentions.as_ref());
+            }
+
+            followup
+                .embeds(&reply.embeds)?
+                .components(&reply.components)?
+                .attachments(&reply.attachments)?
+                .flags(reply.flags)
+                .tts(reply.tts)
+                .await?;
         } else {
             self.create_response_with_reply(
                 reply,
@@ -273,7 +289,21 @@ impl InteractionHandle<'_> {
         let mut responded = self.responded.lock().await;
 
         if *responded {
-            self.followup_with_reply(reply).await?;
+            let client = self.bot.interaction_client();
+            let mut update = client.update_response(&self.token);
+
+            if !reply.content.is_empty() {
+                update = update.content(Some(&reply.content))?;
+            }
+            if let Some(allowed_mentions) = &reply.allowed_mentions {
+                update = update.allowed_mentions(allowed_mentions.as_ref());
+            }
+
+            update
+                .embeds(Some(&reply.embeds))?
+                .components(Some(&reply.components))?
+                .attachments(&reply.attachments)?
+                .await?;
         } else {
             self.create_response_with_reply(reply, InteractionResponseType::UpdateMessage)
                 .await?;
@@ -399,28 +429,6 @@ impl InteractionHandle<'_> {
                     data: Some(reply.into()),
                 },
             )
-            .await?;
-
-        Ok(())
-    }
-
-    async fn followup_with_reply(&self, reply: Reply) -> Result<(), Error> {
-        let client = self.bot.interaction_client();
-        let mut followup = client.create_followup(&self.token);
-
-        if !reply.content.is_empty() {
-            followup = followup.content(&reply.content)?;
-        }
-        if let Some(allowed_mentions) = &reply.allowed_mentions {
-            followup = followup.allowed_mentions(allowed_mentions.as_ref());
-        }
-
-        followup
-            .embeds(&reply.embeds)?
-            .components(&reply.components)?
-            .attachments(&reply.attachments)?
-            .flags(reply.flags)
-            .tts(reply.tts)
             .await?;
 
         Ok(())
