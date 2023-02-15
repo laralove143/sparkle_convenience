@@ -9,12 +9,23 @@ license = "ISC"
 keywords = ["discord", "discord-api", "twilight"]
 categories = ["api-bindings", "asynchronous", "caching"]
 
+[features]
+default = ["rustls-native-roots", "zlib-stock", "decompression"]
+simd-json = ["twilight-gateway/simd-json", "twilight-http/simd-json"]
+native = ["twilight-gateway/native", "twilight-http/native"]
+rustls-native-roots = ["twilight-gateway/rustls-native-roots", "twilight-http/rustls-native-roots"]
+rustls-webpki-roots = ["twilight-gateway/rustls-webpki-roots", "twilight-http/rustls-webpki-roots"]
+zlib-stock = ["twilight-gateway/zlib-stock"]
+zlib-simd = ["twilight-gateway/zlib-simd"]
+decompression = ["twilight-http/decompression"]
+trust-dns = ["twilight-http/trust-dns"]
+
 [dependencies]
-anyhow = "1.0"
-thiserror = "1.0"
-async-trait = "0.1"
-titlecase = "2.2"
-twilight-http = "0.15"
-twilight-gateway = "0.15"
+twilight-gateway = { version = "0.15", default-features = false, features = ["twilight-http"] }
+twilight-http = { version = "0.15", default-features = false }
 twilight-model = "0.15"
 twilight-validate = "0.15"
+titlecase = "2.2"
+async-trait = "0.1"
+anyhow = "1.0"
+thiserror = "1.0"
