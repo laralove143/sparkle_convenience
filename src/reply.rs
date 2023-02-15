@@ -93,8 +93,7 @@ impl Reply {
 
     /// Make the reply message ephemeral
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn ephemeral(mut self) -> Self {
+    pub const fn ephemeral(mut self) -> Self {
         self.flags = MessageFlags::EPHEMERAL;
         self
     }
@@ -111,8 +110,7 @@ impl Reply {
 
     /// Make the reply message TTS
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn tts(mut self) -> Self {
+    pub const fn tts(mut self) -> Self {
         self.tts = true;
         self
     }
