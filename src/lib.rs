@@ -298,7 +298,7 @@ impl Bot {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::ClusterStart`] if creating the cluster fails
+    /// Returns [`Error::StartRecommended`] if creating the cluster fails
     ///
     /// Returns [`Error::Http`] or [`Error::DeserializeBody`] if getting the
     /// application info fails

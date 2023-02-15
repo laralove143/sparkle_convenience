@@ -49,7 +49,7 @@ pub enum Error {
     DeserializeBody(#[from] twilight_http::response::DeserializeBodyError),
     /// A [`twilight_gateway::stream::StartRecommendedError`] was returned
     #[error("{0}")]
-    ClusterStart(#[from] twilight_gateway::stream::StartRecommendedError),
+    StartRecommended(#[from] twilight_gateway::stream::StartRecommendedError),
     /// A [`twilight_validate::request::ValidationError`] was returned
     #[error("{0}")]
     RequestValidation(#[from] twilight_validate::request::ValidationError),
