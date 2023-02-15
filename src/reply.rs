@@ -64,9 +64,8 @@ impl Reply {
     ///
     /// This overwrites the previous content
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn content(mut self, content: String) -> Self {
-        self.content = content;
+    pub fn content(mut self, content: impl Into<String>) -> Self {
+        self.content = content.into();
         self
     }
 
