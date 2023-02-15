@@ -1,9 +1,11 @@
 use std::{
     fmt::{Debug, Display},
-    sync::Arc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
-use tokio::sync::Mutex;
 use twilight_http::client::InteractionClient;
 use twilight_model::{
     application::{
@@ -54,7 +56,7 @@ pub struct InteractionHandle<'bot> {
     /// The bot's permissions
     app_permissions: Permissions,
     /// Whether the interaction was already responded to
-    responded: Arc<Mutex<bool>>,
+    responded: Arc<AtomicBool>,
 }
 
 impl Bot {
@@ -67,7 +69,7 @@ impl Bot {
             token: interaction.token.clone(),
             kind: interaction.kind,
             app_permissions: interaction.app_permissions.unwrap_or(Permissions::all()),
-            responded: Arc::new(Mutex::new(false)),
+            responded: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -173,9 +175,9 @@ impl InteractionHandle<'_> {
     ///
     /// Returns [`Error::Http`] if deferring the interaction fails
     pub async fn defer(&self, ephemeral: DeferVisibility) -> Result<(), Error> {
-        let mut responded = self.responded.lock().await;
+        let responded = self.responded();
 
-        if *responded {
+        if responded {
             return Err(Error::AlreadyResponded);
         }
 
@@ -192,7 +194,7 @@ impl InteractionHandle<'_> {
             .create_response(self.id, &self.token, &defer_response)
             .await?;
 
-        *responded = true;
+        self.set_responded(true);
 
         Ok(())
     }
@@ -206,9 +208,9 @@ impl InteractionHandle<'_> {
     ///
     /// Returns [`Error::Http`] if deferring the interaction fails
     pub async fn defer_update_message(&self) -> Result<(), Error> {
-        let mut responded = self.responded.lock().await;
+        let responded = self.responded();
 
-        if *responded {
+        if responded {
             return Err(Error::AlreadyResponded);
         }
 
@@ -222,7 +224,7 @@ impl InteractionHandle<'_> {
             .create_response(self.id, &self.token, &defer_response)
             .await?;
 
-        *responded = true;
+        self.set_responded(true);
 
         Ok(())
     }
@@ -246,9 +248,9 @@ impl InteractionHandle<'_> {
     /// Returns [`Error::Http`] if creating the followup
     /// response fails
     pub async fn reply(&self, reply: Reply) -> Result<(), Error> {
-        let mut responded = self.responded.lock().await;
+        let responded = self.responded();
 
-        if *responded {
+        if responded {
             let client = self.bot.interaction_client();
             let mut followup = client.create_followup(&self.token);
 
@@ -273,7 +275,7 @@ impl InteractionHandle<'_> {
             )
             .await?;
 
-            *responded = true;
+            self.set_responded(true);
         }
 
         Ok(())
@@ -298,9 +300,9 @@ impl InteractionHandle<'_> {
     /// Returns [`Error::Http`] if creating the followup
     /// response fails
     pub async fn update_message(&self, reply: Reply) -> Result<(), Error> {
-        let mut responded = self.responded.lock().await;
+        let responded = self.responded();
 
-        if *responded {
+        if responded {
             let client = self.bot.interaction_client();
             let mut update = client.update_response(&self.token);
 
@@ -320,7 +322,7 @@ impl InteractionHandle<'_> {
             self.create_response_with_reply(reply, InteractionResponseType::UpdateMessage)
                 .await?;
 
-            *responded = true;
+            self.set_responded(true);
         }
 
         Ok(())
@@ -335,9 +337,9 @@ impl InteractionHandle<'_> {
     ///
     /// Returns [`Error::Http`] if creating the response fails
     pub async fn autocomplete(&self, choices: Vec<CommandOptionChoice>) -> Result<(), Error> {
-        let mut responded = self.responded.lock().await;
+        let responded = self.responded();
 
-        if *responded {
+        if responded {
             return Err(Error::AlreadyResponded);
         }
 
@@ -364,7 +366,7 @@ impl InteractionHandle<'_> {
             )
             .await?;
 
-        *responded = true;
+        self.set_responded(true);
 
         Ok(())
     }
@@ -383,9 +385,9 @@ impl InteractionHandle<'_> {
         title: String,
         text_inputs: Vec<TextInput>,
     ) -> Result<(), Error> {
-        let mut responded = self.responded.lock().await;
+        let responded = self.responded();
 
-        if *responded {
+        if responded {
             return Err(Error::AlreadyResponded);
         }
 
@@ -421,7 +423,7 @@ impl InteractionHandle<'_> {
             )
             .await?;
 
-        *responded = true;
+        self.set_responded(true);
 
         Ok(())
     }
@@ -445,23 +447,30 @@ impl InteractionHandle<'_> {
 
         Ok(())
     }
+
+    fn responded(&self) -> bool {
+        self.responded.load(Ordering::Acquire)
+    }
+
+    fn set_responded(&self, val: bool) {
+        self.responded.store(val, Ordering::Release);
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    };
 
-    use tokio::sync::Mutex;
-
-    #[tokio::test]
-    async fn responded_preserved() {
-        let responded = Arc::new(Mutex::new(false));
+    #[test]
+    fn responded_preserved() {
+        let responded = Arc::new(AtomicBool::new(false));
         let responded_clone = responded.clone();
 
-        let mut responded_mut = responded.lock().await;
-        *responded_mut = true;
-        drop(responded_mut);
+        responded.store(true, Ordering::Release);
 
-        assert!(*responded_clone.lock().await);
+        assert!(responded_clone.load(Ordering::Acquire));
     }
 }
