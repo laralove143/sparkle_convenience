@@ -302,10 +302,6 @@ impl Bot {
     ///
     /// Returns [`Error::Http`] or [`Error::DeserializeBody`] if getting the
     /// application info fails
-    ///
-    /// # Panics
-    ///
-    /// If not run in a Tokio runtime (under `#[tokio::main]`)
     pub async fn new(
         token: String,
         intents: Intents,
