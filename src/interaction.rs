@@ -42,6 +42,16 @@ pub enum DeferVisibility {
     Visible,
 }
 
+/// Defines whether a defer request should update the message or create a new
+/// message on the next response
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DeferBehavior {
+    /// The next response creates a new message
+    Followup,
+    /// The next response updates the last message
+    Update,
+}
+
 /// Allows convenient interaction-related methods
 ///
 /// Created from [`Bot::interaction_handle`]
@@ -167,9 +177,9 @@ impl InteractionHandle<'_> {
 
     /// Defer the interaction
     ///
-    /// In component interactions, this sends another message
+    /// The `visibility` parameter only affects the first [`Self::reply`]
     ///
-    /// The `ephemeral` parameter only affects the first [`Self::reply`]
+    /// `behavior` parameter only has an effect on component interactions
     ///
     /// # Errors
     ///
@@ -177,17 +187,31 @@ impl InteractionHandle<'_> {
     /// response to the interaction
     ///
     /// Returns [`Error::Http`] if deferring the interaction fails
-    pub async fn defer(&self, ephemeral: DeferVisibility) -> Result<(), Error> {
-        let responded = self.responded();
-
-        if responded {
+    pub async fn defer_with_behavior(
+        &self,
+        visibility: DeferVisibility,
+        behavior: DeferBehavior,
+    ) -> Result<(), Error> {
+        if self.responded() {
             return Err(Error::AlreadyResponded);
         }
 
+        let kind = if self.kind == InteractionType::MessageComponent {
+            match behavior {
+                DeferBehavior::Followup => {
+                    InteractionResponseType::DeferredChannelMessageWithSource
+                }
+                DeferBehavior::Update => InteractionResponseType::DeferredUpdateMessage,
+            }
+        } else {
+            InteractionResponseType::DeferredChannelMessageWithSource
+        };
+
         let defer_response = InteractionResponse {
-            kind: InteractionResponseType::DeferredChannelMessageWithSource,
+            kind,
             data: Some(InteractionResponseData {
-                flags: (ephemeral == DeferVisibility::Ephemeral).then_some(MessageFlags::EPHEMERAL),
+                flags: (visibility == DeferVisibility::Ephemeral)
+                    .then_some(MessageFlags::EPHEMERAL),
                 ..Default::default()
             }),
         };
@@ -202,18 +226,25 @@ impl InteractionHandle<'_> {
         Ok(())
     }
 
-    /// Defer the interaction before calling [`Self::update_message`]
+    /// # Deprecated
     ///
-    /// # Errors
-    ///
-    /// Returns [`Error::AlreadyResponded`] if this is not the first
-    /// response to the interaction
-    ///
-    /// Returns [`Error::Http`] if deferring the interaction fails
-    pub async fn defer_update_message(&self) -> Result<(), Error> {
-        let responded = self.responded();
+    /// This simply calls `self.defer_with_behavior(ephemeral,
+    /// DeferBehavior::Followup)`
+    #[deprecated]
+    #[allow(clippy::missing_errors_doc)]
+    pub async fn defer(&self, ephemeral: DeferVisibility) -> Result<(), Error> {
+        self.defer_with_behavior(ephemeral, DeferBehavior::Followup)
+            .await
+    }
 
-        if responded {
+    /// # Deprecated
+    ///
+    /// This simply calls `self.defer_with_behavior(ephemeral,
+    /// DeferBehavior::Update)`
+    #[deprecated]
+    #[allow(clippy::missing_errors_doc)]
+    pub async fn defer_update_message(&self) -> Result<(), Error> {
+        if self.responded() {
             return Err(Error::AlreadyResponded);
         }
 
@@ -243,8 +274,8 @@ impl InteractionHandle<'_> {
     /// if this is the first response to the interaction, returns `None`
     ///
     /// Discord gives 3 seconds of deadline to respond to an interaction, if the
-    /// reply might take longer, consider using [`Self::defer`] before this
-    /// method
+    /// reply might take longer, consider using [`Self::defer_with_behavior`]
+    /// before this method
     ///
     /// # Errors
     ///
@@ -254,9 +285,7 @@ impl InteractionHandle<'_> {
     /// Returns [`Error::Http`] if creating the followup
     /// response fails
     pub async fn reply(&self, reply: Reply) -> Result<Option<Response<Message>>, Error> {
-        let responded = self.responded();
-
-        if responded {
+        if self.responded() {
             let client = self.bot.interaction_client();
             let mut followup = client.create_followup(&self.token);
 
@@ -300,7 +329,7 @@ impl InteractionHandle<'_> {
     /// if this is the first response to the interaction, returns `None`
     ///
     /// Discord gives 3 seconds of deadline to respond to an interaction, if the
-    /// reply might take longer, consider using [`Self::defer_update_message`]
+    /// reply might take longer, consider using [`Self::defer_with_behavior`]
     /// before this method
     ///
     /// # Errors
@@ -311,9 +340,7 @@ impl InteractionHandle<'_> {
     /// Returns [`Error::Http`] if creating the followup
     /// response fails
     pub async fn update_message(&self, reply: Reply) -> Result<Option<Response<Message>>, Error> {
-        let responded = self.responded();
-
-        if responded {
+        if self.responded() {
             let client = self.bot.interaction_client();
             let mut update = client.update_response(&self.token);
 
@@ -350,9 +377,7 @@ impl InteractionHandle<'_> {
     ///
     /// Returns [`Error::Http`] if creating the response fails
     pub async fn autocomplete(&self, choices: Vec<CommandOptionChoice>) -> Result<(), Error> {
-        let responded = self.responded();
-
-        if responded {
+        if self.responded() {
             return Err(Error::AlreadyResponded);
         }
 

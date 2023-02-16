@@ -3,6 +3,9 @@ use twilight_model::{
     http::{attachment::Attachment, interaction::InteractionResponseData},
 };
 
+#[cfg(doc)]
+use crate::interaction::InteractionHandle;
+
 /// The message to reply to the interaction with
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Reply {
@@ -14,6 +17,7 @@ pub struct Reply {
     #[allow(clippy::option_option)]
     pub(crate) allowed_mentions: Option<Option<AllowedMentions>>,
     pub(crate) tts: bool,
+    pub(crate) update_last: bool,
 }
 
 impl Default for Reply {
@@ -57,6 +61,7 @@ impl Reply {
             flags: MessageFlags::empty(),
             allowed_mentions: None,
             tts: false,
+            update_last: false,
         }
     }
 
@@ -90,10 +95,14 @@ impl Reply {
         self
     }
 
-    /// Make the reply message ephemeral
+    /// Set the flags of the message
+    ///
+    /// # Warning
+    ///
+    /// Overwrites [`Reply::ephemeral`]
     #[must_use]
-    pub const fn ephemeral(mut self) -> Self {
-        self.flags = MessageFlags::EPHEMERAL;
+    pub const fn flags(mut self, flags: MessageFlags) -> Self {
+        self.flags = flags;
         self
     }
 
@@ -111,6 +120,22 @@ impl Reply {
     #[must_use]
     pub const fn tts(mut self) -> Self {
         self.tts = true;
+        self
+    }
+
+    /// Make the reply message ephemeral
+    #[must_use]
+    pub const fn ephemeral(mut self) -> Self {
+        self.flags = MessageFlags::EPHEMERAL;
+        self
+    }
+
+    /// Make the reply update the last reply if one exists
+    ///
+    /// Currently only available in [`InteractionHandle`]
+    #[must_use]
+    pub const fn update_last(mut self) -> Self {
+        self.update_last = true;
         self
     }
 }

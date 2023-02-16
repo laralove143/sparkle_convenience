@@ -82,7 +82,7 @@
 //!     error::IntoError,
 //!     interaction::{
 //!         extract::{InteractionDataExt, InteractionExt},
-//!         DeferVisibility,
+//!         DeferBehavior, DeferVisibility,
 //!     },
 //!     reply::Reply,
 //!     Bot,
@@ -92,7 +92,9 @@
 //! let handle = bot.interaction_handle(&interaction);
 //! match interaction.name().ok()? {
 //!     "pay_respects" => {
-//!         handle.defer(DeferVisibility::Ephemeral).await?;
+//!         handle
+//!             .defer_with_behavior(DeferVisibility::Ephemeral, DeferBehavior::Update)
+//!             .await?;
 //!         // More on error handling below
 //!         handle.check_permissions(Permissions::MANAGE_GUILD)?;
 //!         // Say this is a user command
