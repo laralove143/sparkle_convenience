@@ -6,7 +6,8 @@ use twilight_model::{
 #[cfg(doc)]
 use crate::interaction::InteractionHandle;
 
-/// The message to reply to the interaction with
+/// The message to reply with, combining similar data in messages, interactions
+/// and webhooks
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Reply {
     pub(crate) content: String,

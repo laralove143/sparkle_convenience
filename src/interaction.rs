@@ -6,7 +6,7 @@ use std::{
     },
 };
 
-use twilight_http::{client::InteractionClient, Response};
+use twilight_http::client::InteractionClient;
 use twilight_model::{
     application::{
         command::CommandOptionChoice,
@@ -143,18 +143,12 @@ impl InteractionHandle<'_> {
             return;
         }
 
-        let reply_res = if matches!(
-            self.kind,
-            InteractionType::MessageComponent | InteractionType::ModalSubmit
-        ) {
-            self.update_message(reply).await
-        } else {
-            self.reply(reply).await
-        }
-        .map_err(|err| anyhow::Error::new(err).internal::<Custom>());
-
-        if let Err(Some(reply_err)) = reply_res {
-            self.bot.log(reply_err).await;
+        if let Err(Some(reply_internal_err)) = self
+            .reply(reply)
+            .await
+            .map_err(|err| anyhow::Error::new(err).internal::<Custom>())
+        {
+            self.bot.log(reply_internal_err).await;
         }
 
         if let Some(internal_err) = error.internal::<Custom>() {
@@ -273,17 +267,28 @@ impl InteractionHandle<'_> {
 
     /// Reply to this command
     ///
-    /// In component interactions, this sends another message
-    ///
     /// If the interaction was already responded to, makes a followup response,
     /// otherwise responds to the interaction with a message
     ///
-    /// If a followup response was made, returns the response wrapped in `Some`,
-    /// if this is the first response to the interaction, returns `None`
+    /// If a followup was created or [`Reply::update_last`] was called and no
+    /// followup was created before, returns `Some`, otherwise returns `None`,
+    /// the response is deserialized to track the last sent message
     ///
     /// Discord gives 3 seconds of deadline to respond to an interaction, if the
     /// reply might take longer, consider using [`Self::defer_with_behavior`]
     /// before this method
+    ///
+    /// # Updating Last Response
+    ///
+    /// You can use [`Reply::update_last`] to update the last response, the
+    /// update overwrites all of the older response, if one doesn't exist, it
+    /// makes a new response,
+    ///
+    /// Has no effect if this is the first reply after the interaction was
+    /// deferred
+    ///
+    /// On component interactions, if there is no earlier response, updates the
+    /// message the component is attached to
     ///
     /// # Errors
     ///
@@ -292,33 +297,91 @@ impl InteractionHandle<'_> {
     ///
     /// Returns [`Error::Http`] if creating the followup
     /// response fails
-    pub async fn reply(&self, reply: Reply) -> Result<Option<Response<Message>>, Error> {
+    ///
+    /// Returns [`Error::DeserializeBody`] if deserializing the response fails
+    pub async fn reply(&self, reply: Reply) -> Result<Option<Message>, Error> {
         if self.responded() {
             let client = self.bot.interaction_client();
-            let mut followup = client.create_followup(&self.token);
 
-            if !reply.content.is_empty() {
-                followup = followup.content(&reply.content)?;
-            }
-            if let Some(allowed_mentions) = &reply.allowed_mentions {
-                followup = followup.allowed_mentions(allowed_mentions.as_ref());
-            }
+            if reply.update_last {
+                if let Some(last_message_id) = self.last_message_id() {
+                    let mut update_followup = client.update_followup(&self.token, last_message_id);
 
-            Ok(Some(
-                followup
+                    if let Some(allowed_mentions) = &reply.allowed_mentions {
+                        update_followup =
+                            update_followup.allowed_mentions(allowed_mentions.as_ref());
+                    }
+                    update_followup
+                        .content((!reply.content.is_empty()).then_some(&reply.content))?
+                        .embeds(Some(&reply.embeds))?
+                        .components(Some(&reply.components))?
+                        .attachments(&reply.attachments)?
+                        .await?;
+
+                    Ok(None)
+                } else {
+                    let mut update_response = client.update_response(&self.token);
+
+                    if let Some(allowed_mentions) = &reply.allowed_mentions {
+                        update_response =
+                            update_response.allowed_mentions(allowed_mentions.as_ref());
+                    }
+
+                    let message = update_response
+                        .content((!reply.content.is_empty()).then_some(&reply.content))?
+                        .embeds(Some(&reply.embeds))?
+                        .components(Some(&reply.components))?
+                        .attachments(&reply.attachments)?
+                        .await?
+                        .model()
+                        .await?;
+
+                    self.set_last_message_id(message.id);
+
+                    Ok(Some(message))
+                }
+            } else {
+                let mut followup = client.create_followup(&self.token);
+
+                if !reply.content.is_empty() {
+                    followup = followup.content(&reply.content)?;
+                }
+                if let Some(allowed_mentions) = &reply.allowed_mentions {
+                    followup = followup.allowed_mentions(allowed_mentions.as_ref());
+                }
+
+                let message = followup
                     .embeds(&reply.embeds)?
                     .components(&reply.components)?
                     .attachments(&reply.attachments)?
                     .flags(reply.flags)
                     .tts(reply.tts)
-                    .await?,
-            ))
+                    .await?
+                    .model()
+                    .await?;
+
+                self.set_last_message_id(message.id);
+
+                Ok(Some(message))
+            }
         } else {
-            self.create_response_with_reply(
-                reply,
-                InteractionResponseType::ChannelMessageWithSource,
-            )
-            .await?;
+            let kind = if reply.update_last && self.kind == InteractionType::MessageComponent {
+                InteractionResponseType::UpdateMessage
+            } else {
+                InteractionResponseType::ChannelMessageWithSource
+            };
+
+            self.bot
+                .interaction_client()
+                .create_response(
+                    self.id,
+                    &self.token,
+                    &InteractionResponse {
+                        kind,
+                        data: Some(reply.into()),
+                    },
+                )
+                .await?;
 
             self.set_responded(true);
 
@@ -326,54 +389,13 @@ impl InteractionHandle<'_> {
         }
     }
 
-    /// Update the message the component is attached to
+    /// # Deprecated
     ///
-    /// Only available for components and modals
-    ///
-    /// If the interaction was already responded to, makes a followup response,
-    /// otherwise responds to the interaction with a message update
-    ///
-    /// If a followup response was made, returns the response wrapped in `Some`,
-    /// if this is the first response to the interaction, returns `None`
-    ///
-    /// Discord gives 3 seconds of deadline to respond to an interaction, if the
-    /// reply might take longer, consider using [`Self::defer_with_behavior`]
-    /// before this method
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::RequestValidation`] if the reply is invalid (Refer to
-    /// [`twilight_http::request::application::interaction::CreateFollowup`])
-    ///
-    /// Returns [`Error::Http`] if creating the followup
-    /// response fails
-    pub async fn update_message(&self, reply: Reply) -> Result<Option<Response<Message>>, Error> {
-        if self.responded() {
-            let client = self.bot.interaction_client();
-            let mut update = client.update_response(&self.token);
-
-            if !reply.content.is_empty() {
-                update = update.content(Some(&reply.content))?;
-            }
-            if let Some(allowed_mentions) = &reply.allowed_mentions {
-                update = update.allowed_mentions(allowed_mentions.as_ref());
-            }
-
-            Ok(Some(
-                update
-                    .embeds(Some(&reply.embeds))?
-                    .components(Some(&reply.components))?
-                    .attachments(&reply.attachments)?
-                    .await?,
-            ))
-        } else {
-            self.create_response_with_reply(reply, InteractionResponseType::UpdateMessage)
-                .await?;
-
-            self.set_responded(true);
-
-            Ok(None)
-        }
+    /// This simply calls `self.reply(reply.update_last())`
+    #[deprecated]
+    #[allow(clippy::missing_errors_doc)]
+    pub async fn update_message(&self, reply: Reply) -> Result<Option<Message>, Error> {
+        self.reply(reply.update_last()).await
     }
 
     /// Respond to this command with autocomplete suggestions
@@ -398,15 +420,7 @@ impl InteractionHandle<'_> {
                     kind: InteractionResponseType::ApplicationCommandAutocompleteResult,
                     data: Some(InteractionResponseData {
                         choices: Some(choices),
-                        allowed_mentions: None,
-                        attachments: None,
-                        components: None,
-                        content: None,
-                        custom_id: None,
-                        embeds: None,
-                        flags: None,
-                        title: None,
-                        tts: None,
+                        ..Default::default()
                     }),
                 },
             )
@@ -457,39 +471,13 @@ impl InteractionHandle<'_> {
                                 })
                                 .collect(),
                         ),
-                        allowed_mentions: None,
-                        attachments: None,
-                        choices: None,
-                        content: None,
-                        embeds: None,
-                        flags: None,
-                        tts: None,
+                        ..Default::default()
                     }),
                 },
             )
             .await?;
 
         self.set_responded(true);
-
-        Ok(())
-    }
-
-    async fn create_response_with_reply(
-        &self,
-        reply: Reply,
-        kind: InteractionResponseType,
-    ) -> Result<(), Error> {
-        self.bot
-            .interaction_client()
-            .create_response(
-                self.id,
-                &self.token,
-                &InteractionResponse {
-                    kind,
-                    data: Some(reply.into()),
-                },
-            )
-            .await?;
 
         Ok(())
     }
