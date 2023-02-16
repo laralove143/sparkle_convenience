@@ -109,6 +109,15 @@
 //!                     .content("You have -1 respect now".to_owned()),
 //!             )
 //!             .await?;
+//!         // Edits the last message
+//!         handle
+//!             .reply(
+//!                 Reply::new()
+//!                     .ephemeral()
+//!                     .update_last()
+//!                     .content("Just kidding you never had any respect"),
+//!             )
+//!             .await?;
 //!     }
 //!     _ => {}
 //! }
