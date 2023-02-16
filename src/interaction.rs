@@ -6,15 +6,18 @@ use std::{
     },
 };
 
-use twilight_http::client::InteractionClient;
+use twilight_http::{client::InteractionClient, Response};
 use twilight_model::{
     application::{
         command::CommandOptionChoice,
         interaction::{Interaction, InteractionType},
     },
-    channel::message::{
-        component::{ActionRow, TextInput},
-        Component, MessageFlags,
+    channel::{
+        message::{
+            component::{ActionRow, TextInput},
+            Component, MessageFlags,
+        },
+        Message,
     },
     guild::Permissions,
     http::interaction::{InteractionResponse, InteractionResponseData, InteractionResponseType},
@@ -236,6 +239,9 @@ impl InteractionHandle<'_> {
     /// If the interaction was already responded to, makes a followup response,
     /// otherwise responds to the interaction with a message
     ///
+    /// If a followup response was made, returns the response wrapped in `Some`,
+    /// if this is the first response to the interaction, returns `None`
+    ///
     /// Discord gives 3 seconds of deadline to respond to an interaction, if the
     /// reply might take longer, consider using [`Self::defer`] before this
     /// method
@@ -247,7 +253,7 @@ impl InteractionHandle<'_> {
     ///
     /// Returns [`Error::Http`] if creating the followup
     /// response fails
-    pub async fn reply(&self, reply: Reply) -> Result<(), Error> {
+    pub async fn reply(&self, reply: Reply) -> Result<Option<Response<Message>>, Error> {
         let responded = self.responded();
 
         if responded {
@@ -261,13 +267,15 @@ impl InteractionHandle<'_> {
                 followup = followup.allowed_mentions(allowed_mentions.as_ref());
             }
 
-            followup
-                .embeds(&reply.embeds)?
-                .components(&reply.components)?
-                .attachments(&reply.attachments)?
-                .flags(reply.flags)
-                .tts(reply.tts)
-                .await?;
+            Ok(Some(
+                followup
+                    .embeds(&reply.embeds)?
+                    .components(&reply.components)?
+                    .attachments(&reply.attachments)?
+                    .flags(reply.flags)
+                    .tts(reply.tts)
+                    .await?,
+            ))
         } else {
             self.create_response_with_reply(
                 reply,
@@ -276,9 +284,9 @@ impl InteractionHandle<'_> {
             .await?;
 
             self.set_responded(true);
-        }
 
-        Ok(())
+            Ok(None)
+        }
     }
 
     /// Update the message the component is attached to
@@ -287,6 +295,9 @@ impl InteractionHandle<'_> {
     ///
     /// If the interaction was already responded to, makes a followup response,
     /// otherwise responds to the interaction with a message update
+    ///
+    /// If a followup response was made, returns the response wrapped in `Some`,
+    /// if this is the first response to the interaction, returns `None`
     ///
     /// Discord gives 3 seconds of deadline to respond to an interaction, if the
     /// reply might take longer, consider using [`Self::defer_update_message`]
@@ -299,7 +310,7 @@ impl InteractionHandle<'_> {
     ///
     /// Returns [`Error::Http`] if creating the followup
     /// response fails
-    pub async fn update_message(&self, reply: Reply) -> Result<(), Error> {
+    pub async fn update_message(&self, reply: Reply) -> Result<Option<Response<Message>>, Error> {
         let responded = self.responded();
 
         if responded {
@@ -313,19 +324,21 @@ impl InteractionHandle<'_> {
                 update = update.allowed_mentions(allowed_mentions.as_ref());
             }
 
-            update
-                .embeds(Some(&reply.embeds))?
-                .components(Some(&reply.components))?
-                .attachments(&reply.attachments)?
-                .await?;
+            Ok(Some(
+                update
+                    .embeds(Some(&reply.embeds))?
+                    .components(Some(&reply.components))?
+                    .attachments(&reply.attachments)?
+                    .await?,
+            ))
         } else {
             self.create_response_with_reply(reply, InteractionResponseType::UpdateMessage)
                 .await?;
 
             self.set_responded(true);
-        }
 
-        Ok(())
+            Ok(None)
+        }
     }
 
     /// Respond to this command with autocomplete suggestions
