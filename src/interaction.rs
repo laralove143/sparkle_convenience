@@ -1,7 +1,7 @@
 use std::{
     fmt::{Debug, Display},
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc,
     },
 };
@@ -21,7 +21,10 @@ use twilight_model::{
     },
     guild::Permissions,
     http::interaction::{InteractionResponse, InteractionResponseData, InteractionResponseType},
-    id::{marker::InteractionMarker, Id},
+    id::{
+        marker::{InteractionMarker, MessageMarker},
+        Id,
+    },
 };
 
 use crate::{
@@ -70,6 +73,10 @@ pub struct InteractionHandle<'bot> {
     app_permissions: Permissions,
     /// Whether the interaction was already responded to
     responded: Arc<AtomicBool>,
+    /// ID of the last message sent as response to the interaction
+    ///
+    /// 0 if `None`
+    last_message_id: Arc<AtomicU64>,
 }
 
 impl Bot {
@@ -83,6 +90,7 @@ impl Bot {
             kind: interaction.kind,
             app_permissions: interaction.app_permissions.unwrap_or(Permissions::all()),
             responded: Arc::new(AtomicBool::new(false)),
+            last_message_id: Arc::new(AtomicU64::new(0)),
         }
     }
 
@@ -493,6 +501,19 @@ impl InteractionHandle<'_> {
     fn set_responded(&self, val: bool) {
         self.responded.store(val, Ordering::Release);
     }
+
+    fn last_message_id(&self) -> Option<Id<MessageMarker>> {
+        let id = self.last_message_id.load(Ordering::Acquire);
+        if id == 0 {
+            None
+        } else {
+            Some(Id::new(id))
+        }
+    }
+
+    fn set_last_message_id(&self, val: Id<MessageMarker>) {
+        self.last_message_id.store(val.get(), Ordering::Release);
+    }
 }
 
 #[cfg(test)]
@@ -503,7 +524,7 @@ mod tests {
     };
 
     #[test]
-    fn responded_preserved() {
+    fn atomic_preserved() {
         let responded = Arc::new(AtomicBool::new(false));
         let responded_clone = responded.clone();
 
