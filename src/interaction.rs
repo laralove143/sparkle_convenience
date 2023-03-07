@@ -279,12 +279,12 @@ impl InteractionHandle<'_> {
     ///
     /// You can use [`Reply::update_last`] to update the last response, the
     /// update overwrites all of the older response, if one doesn't exist, it
-    /// makes a new response,
+    /// makes a new response
     ///
     /// Has no effect if this is the first reply after the interaction was
     /// deferred
     ///
-    /// On component interactions, if there is no earlier response, updates the
+    /// On component interactions, if there is no later response, updates the
     /// message the component is attached to
     ///
     /// # Errors
