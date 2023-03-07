@@ -131,36 +131,47 @@ impl InteractionHandle<'_> {
     /// [`Self::handle_error_no_custom`]
     ///
     /// - If the given error should be ignored, simply returns early
-    /// - Tries to reply to the interaction with the given reply, if it fails
-    ///   and the error is internal, logs the error
     /// - If the given error is internal, logs the error
+    /// - Tries to reply to the interaction with the given reply, if it fails
+    ///   and the error is internal, logs the error, if it succeeds, returns
+    ///   what [`Self::reply`] would return
     pub async fn handle_error<Custom: Display + Debug + Send + Sync + 'static>(
         &self,
         reply: Reply,
         error: anyhow::Error,
-    ) {
+    ) -> Option<Message> {
         if error.ignore() {
-            return;
-        }
-
-        if let Err(Some(reply_internal_err)) = self
-            .reply(reply)
-            .await
-            .map_err(|err| anyhow::Error::new(err).internal::<Custom>())
-        {
-            self.bot.log(reply_internal_err).await;
+            return None;
         }
 
         if let Some(internal_err) = error.internal::<Custom>() {
             self.bot.log(internal_err).await;
+        }
+
+        match self
+            .reply(reply)
+            .await
+            .map_err(|err| anyhow::Error::new(err).internal::<Custom>())
+        {
+            Ok(message) => message,
+            Err(reply_err) => {
+                if let Some(reply_internal_err) = reply_err {
+                    self.bot.log(reply_internal_err).await;
+                }
+                None
+            }
         }
     }
 
     /// Handle an error without checking for a custom error type
     ///
     /// See [`Self::handle_error`] for more information
-    pub async fn handle_error_no_custom(&self, reply: Reply, error: anyhow::Error) {
-        self.handle_error::<NoError>(reply, error).await;
+    pub async fn handle_error_no_custom(
+        &self,
+        reply: Reply,
+        error: anyhow::Error,
+    ) -> Option<Message> {
+        self.handle_error::<NoError>(reply, error).await
     }
 
     /// Defer the interaction

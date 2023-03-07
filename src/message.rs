@@ -30,32 +30,37 @@ impl Bot {
     /// [`Self::handle_error_no_custom`]
     ///
     /// - If the given error should be ignored, simply returns early
-    /// - Tries to send the given reply to the channel, if it fails and the
-    ///   error is internal, logs the error
     /// - If the given error is internal, logs the error
+    /// - Tries to send the given reply to the channel, if it fails and the
+    ///   error is internal, logs the error, if it succeeds, returns the
+    ///   response
     pub async fn handle_error<Custom: Display + Debug + Send + Sync + 'static>(
         &self,
         channel_id: Id<ChannelMarker>,
         reply: Reply,
         error: anyhow::Error,
-    ) {
+    ) -> Option<Response<Message>> {
         if error.ignore() {
-            return;
-        }
-
-        let create_message_res = match self.http.create_message(channel_id).with_reply(&reply) {
-            Ok(create) => create.await.map_err(anyhow::Error::new),
-            Err(validation_err) => Err(anyhow::Error::new(validation_err)),
-        };
-
-        if let Err(Some(create_message_err)) =
-            create_message_res.map_err(error::ErrorExt::internal::<Custom>)
-        {
-            self.log(create_message_err).await;
+            return None;
         }
 
         if let Some(internal_err) = error.internal::<Custom>() {
             self.log(internal_err).await;
+        }
+
+        let create_res = match self.http.create_message(channel_id).with_reply(&reply) {
+            Ok(create) => create.await.map_err(anyhow::Error::new),
+            Err(validation_err) => Err(validation_err.into()),
+        };
+
+        match create_res.map_err(error::ErrorExt::internal::<Custom>) {
+            Ok(response) => Some(response),
+            Err(create_err) => {
+                if let Some(create_internal_err) = create_err {
+                    self.log(create_internal_err).await;
+                }
+                None
+            }
         }
     }
 
@@ -67,8 +72,8 @@ impl Bot {
         channel_id: Id<ChannelMarker>,
         reply: Reply,
         error: anyhow::Error,
-    ) {
-        self.handle_error::<NoError>(channel_id, reply, error).await;
+    ) -> Option<Response<Message>> {
+        self.handle_error::<NoError>(channel_id, reply, error).await
     }
 }
 
