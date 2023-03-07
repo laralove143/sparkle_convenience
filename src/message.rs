@@ -14,7 +14,7 @@ use twilight_validate::message::MessageValidationError;
 
 use crate::{
     error,
-    error::{extract::HttpErrorExt, Error, ErrorExt, UserError},
+    error::{extract::HttpErrorExt, Error, ErrorExt, NoError, UserError},
     reply::Reply,
     Bot,
 };
@@ -68,24 +68,7 @@ impl Bot {
         reply: Reply,
         error: anyhow::Error,
     ) {
-        if error.ignore() {
-            return;
-        }
-
-        let create_message_res = match self.http.create_message(channel_id).with_reply(&reply) {
-            Ok(create) => create.await.map_err(anyhow::Error::new),
-            Err(validation_err) => Err(anyhow::Error::new(validation_err)),
-        };
-
-        if let Err(Some(create_message_err)) =
-            create_message_res.map_err(ErrorExt::internal_no_custom)
-        {
-            self.log(create_message_err).await;
-        }
-
-        if let Some(internal_err) = error.internal_no_custom() {
-            self.log(internal_err).await;
-        }
+        self.handle_error::<NoError>(channel_id, reply, error).await;
     }
 }
 

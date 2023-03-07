@@ -28,7 +28,7 @@ use twilight_model::{
 };
 
 use crate::{
-    error::{Error, ErrorExt, UserError},
+    error::{Error, ErrorExt, NoError, UserError},
     reply::Reply,
     Bot,
 };
@@ -160,21 +160,7 @@ impl InteractionHandle<'_> {
     ///
     /// See [`Self::handle_error`] for more information
     pub async fn handle_error_no_custom(&self, reply: Reply, error: anyhow::Error) {
-        if error.ignore() {
-            return;
-        }
-
-        if let Err(Some(reply_err)) = self
-            .reply(reply)
-            .await
-            .map_err(|err| anyhow::Error::new(err).internal_no_custom())
-        {
-            self.bot.log(reply_err).await;
-        }
-
-        if let Some(internal_err) = error.internal_no_custom() {
-            self.bot.log(internal_err).await;
-        }
+        self.handle_error::<NoError>(reply, error).await;
     }
 
     /// Defer the interaction

@@ -1,6 +1,6 @@
 use std::{
     any::type_name,
-    fmt::{Debug, Display},
+    fmt::{Debug, Display, Formatter},
 };
 
 use anyhow::anyhow;
@@ -77,6 +77,15 @@ pub enum UserError {
     /// [`HttpErrorExt::failed_dm`] or [`HttpErrorExt::reaction_blocked`]
     #[error("a user error has been handled like an internal error")]
     Ignore,
+}
+
+#[derive(Debug)]
+pub(crate) struct NoError;
+
+impl Display for NoError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("this should be unreachable")
+    }
 }
 
 /// Trait implemented on generic error types with convenience methods
@@ -166,11 +175,7 @@ impl ErrorExt for anyhow::Error {
     }
 
     fn internal_no_custom(self) -> Option<Self> {
-        if self.user().is_none() {
-            Some(self)
-        } else {
-            None
-        }
+        self.internal::<NoError>()
     }
 
     fn ignore(&self) -> bool {
