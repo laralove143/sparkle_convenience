@@ -12,7 +12,12 @@ relying on callbacks and mostly following Twilight patterns while making your li
 
 ## ✨ FEATURES
 
-Please have a look at the docs (Code appears better there)
+- Get your bot started with one method
+- Defer, respond to or update responses of interactions without having to track anything yourself
+- Extract interaction data easily
+- Handle user errors with little boilerplate and with edge cases caught
+- Log internal errors with webhooks
+- Much more you can find out in the docs!
 
 ## ✉️ CONTACT
 
