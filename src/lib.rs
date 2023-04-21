@@ -248,25 +248,6 @@
 //! # Ok(())
 //! # }
 //! ```
-//!
-//! # Features
-//!
-//! The features are provided to enable Twilight's features
-//!
-//! - **Default:** The default features of Twilight are enabled
-//!     - `rustls-native-roots`
-//!     - `zlib-stock`
-//!     - `decompression`
-//! - **TLS:**
-//!     - `native`
-//!     - `rustls-native-roots`
-//!     - `rustls-webpki-roots`
-//! - **zlib:**
-//!     - `zlib-stock`
-//!     - `zlib-simd`
-//! - `simd-json`
-//! - `decompression`
-//! - `trust-dns`
 
 use std::fmt::Debug;
 
