@@ -11,6 +11,7 @@ use crate::error::extract::HttpErrorExt;
 use crate::{interaction::InteractionHandle, Bot};
 
 /// Extracting data from Twilight's errors
+#[deprecated(note = "will be removed due to low usage")]
 pub mod extract;
 
 /// Trait implemented on types that can be converted into an [`anyhow::Error`]
@@ -94,6 +95,7 @@ impl Display for NoError {
 /// if [`InteractionHandle::handle_error`] or [`Bot::handle_error`] aren't
 /// enough
 #[allow(clippy::module_name_repetitions)]
+#[deprecated(note = "Use [`Bot::handle_error`] or [`InteractionHandle::handle_error`] instead")]
 pub trait ErrorExt: Sized {
     /// Extract the user-facing error if this is an error that should be
     /// reported to the user

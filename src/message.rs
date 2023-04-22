@@ -101,6 +101,7 @@ impl HttpExt for twilight_http::Client {
 
 /// Convenience methods for [`CreateMessage`]
 #[async_trait]
+#[deprecated(note = "will be removed due to low usage")]
 pub trait CreateMessageExt<'a>: Sized {
     /// Add the given reply's data to the message
     ///
