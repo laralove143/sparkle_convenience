@@ -28,7 +28,7 @@ use twilight_model::{
 };
 
 use crate::{
-    error::{Error, ErrorExt, NoError, UserError},
+    error::{Error, ErrorExt, NoCustomError, UserError},
     reply::Reply,
     Bot,
 };
@@ -171,7 +171,7 @@ impl InteractionHandle<'_> {
         reply: Reply,
         error: anyhow::Error,
     ) -> Option<Message> {
-        self.handle_error::<NoError>(reply, error).await
+        self.handle_error::<NoCustomError>(reply, error).await
     }
 
     /// Defer the interaction

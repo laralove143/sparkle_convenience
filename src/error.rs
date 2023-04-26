@@ -64,6 +64,7 @@ pub enum Error {
 /// The display implementation on this should not be used
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 #[allow(clippy::module_name_repetitions)]
+#[deprecated(note = "use `CombinedUserError` instead")]
 pub enum UserError {
     /// The bot is missing some required permissions
     ///
@@ -80,12 +81,78 @@ pub enum UserError {
     Ignore,
 }
 
-#[derive(Debug)]
-pub(crate) struct NoError;
+/// A user-facing error
+///
+/// Can be created using [`CombinedUserError::from<anyhow::Error>`]
+///
+/// `C` is your error type for custom user errors, if you don't have one, you
+/// can pass [`NoCustomError`]
+///
+/// # Warnings
+///
+/// - It's recommended to use the same type for `C` all around to avoid
+///   unexpected return values in [`CombinedUserError::from<anyhow::Error>`]
+/// - The display implementation of this is added to be compatible with
+///   `anyhow::Error` and shouldn't be used
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[allow(clippy::module_name_repetitions)]
+pub enum CombinedUserError<C> {
+    /// The bot is missing some required permissions
+    ///
+    /// `None` when the error occurred outside of
+    /// [`InteractionHandle::check_permissions`] and
+    /// [`CombinedUserError::with_permissions`] wasn't called
+    MissingPermissions(Option<Permissions>),
+    /// A custom error was returned
+    Custom(C),
+    /// An error has occurred on the application's side
+    ///
+    /// This is the fallback kind when the error given to
+    /// [`CombinedUserError::from<anyhow::Error>`] isn't [`CombinedUserError`]
+    /// or `C`
+    Internal,
+}
 
-impl Display for NoError {
+impl<C> Display for CombinedUserError<C> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("this should be unreachable")
+        f.write_str("display implementation of `CombinedUserError` shouldn't be used")
+    }
+}
+
+impl<C> CombinedUserError<C> {
+    /// If this is a [`Self::MissingPermissions`] error, replace the wrapped
+    /// errors with the given permissions
+    #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
+    pub fn with_permissions(self, permissions: Permissions) -> Self {
+        if let Self::MissingPermissions(_) = self {
+            Self::MissingPermissions(Some(permissions))
+        } else {
+            self
+        }
+    }
+}
+
+impl<C: Display + Debug + Send + Sync + 'static> From<anyhow::Error> for CombinedUserError<C> {
+    fn from(err: anyhow::Error) -> Self {
+        err.downcast::<Self>().unwrap_or_else(|err| {
+            err.downcast::<C>()
+                .map_or(Self::Internal, |custom_err| Self::Custom(custom_err))
+        })
+    }
+}
+
+/// A marker type to be used with [`CombinedUserError`] without a custom error
+///
+/// The display implementation of this is added to be compatible with
+/// `anyhow::Error` and shouldn't be used
+#[derive(Debug, Clone, Copy)]
+#[allow(clippy::module_name_repetitions)]
+pub struct NoCustomError;
+
+impl Display for NoCustomError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("display implementation of `NoCustomError` shouldn't be used")
     }
 }
 
@@ -177,7 +244,7 @@ impl ErrorExt for anyhow::Error {
     }
 
     fn internal_no_custom(self) -> Option<Self> {
-        self.internal::<NoError>()
+        self.internal::<NoCustomError>()
     }
 
     fn ignore(&self) -> bool {
@@ -187,67 +254,44 @@ impl ErrorExt for anyhow::Error {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        env::VarError,
-        error::Error,
-        fmt::{Display, Formatter},
-    };
+    use std::fmt::{Display, Formatter};
 
-    use twilight_model::guild::Permissions;
+    use crate::error::{CombinedUserError, NoCustomError};
 
-    use crate::error::{ErrorExt, UserError};
-
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Copy)]
     enum CustomError {
         TooSlay,
     }
 
     impl Display for CustomError {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            f.write_str("You slayed too hard")
+            f.write_str("slayed too hard")
         }
     }
 
-    impl Error for CustomError {}
-
     #[test]
-    fn user_err_downcast() {
-        let ignore_err = UserError::Ignore;
-        assert_eq!(Some(ignore_err), anyhow::Error::new(ignore_err).user());
+    fn combined_user_err_downcast() {
+        let missing_perms_from_anyhow: CombinedUserError<CustomError> =
+            anyhow::anyhow!(CombinedUserError::MissingPermissions::<CustomError>(None)).into();
+        assert!(matches!(
+            missing_perms_from_anyhow,
+            CombinedUserError::MissingPermissions(None)
+        ));
 
-        let permissions_err = UserError::MissingPermissions(Some(Permissions::CREATE_INVITE));
-        assert_eq!(
-            Some(permissions_err),
-            anyhow::Error::new(permissions_err).user()
-        );
+        let custom_from_anyhow: CombinedUserError<CustomError> =
+            anyhow::anyhow!(CombinedUserError::Custom(CustomError::TooSlay)).into();
+        assert!(matches!(
+            custom_from_anyhow,
+            CombinedUserError::Custom(CustomError::TooSlay)
+        ));
+
+        let internal_from_anyhow: CombinedUserError<CustomError> =
+            anyhow::anyhow!("feature occurred").into();
+        assert!(matches!(
+            internal_from_anyhow,
+            CombinedUserError::<CustomError>::Internal
+        ));
     }
 
-    #[test]
-    fn err_with_permissions() {
-        let permissions = Permissions::CREATE_INVITE;
-
-        let err =
-            anyhow::Error::new(UserError::MissingPermissions(None)).with_permissions(permissions);
-        assert_eq!(
-            Some(UserError::MissingPermissions(Some(permissions))),
-            err.user()
-        );
-    }
-
-    #[test]
-    fn internal_err_downcast() {
-        let user_err = anyhow::Error::new(UserError::Ignore);
-        assert!(user_err.internal::<CustomError>().is_none());
-
-        let custom_err = anyhow::Error::new(CustomError::TooSlay);
-        assert!(custom_err.internal::<CustomError>().is_none());
-
-        assert_eq!(
-            Some(&VarError::NotPresent),
-            anyhow::Error::new(VarError::NotPresent)
-                .internal::<CustomError>()
-                .as_ref()
-                .and_then(anyhow::Error::downcast_ref)
-        );
-    }
+    const fn _combined_user_err_no_custom(_: CombinedUserError<NoCustomError>) {}
 }
