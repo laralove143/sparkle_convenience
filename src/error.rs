@@ -152,10 +152,10 @@ impl<C: Clone + Display + Debug + Send + Sync + 'static> CombinedUserError<C> {
 impl<C> CombinedUserError<C> {
     /// Creates this error from an HTTP error
     ///
-    /// If you use `anyhow`, use [`Self::from_anyhow_err`] instead
+    /// If you use `anyhow`, use [`CombinedUserError::from_anyhow_err`] instead
     ///
     /// Checks if the error is a permission error or if it should be ignored,
-    /// returns [`Self::Internal`] if not
+    /// returns [`CombinedUserError::Internal`] if not
     pub const fn from_http_err(http_err: &twilight_http::Error) -> Self {
         match http_error::Error::from_http_err(http_err) {
             http_error::Error::UnknownMessage
@@ -168,7 +168,7 @@ impl<C> CombinedUserError<C> {
         }
     }
 
-    /// If this is a [`Self::MissingPermissions`] error, replace the wrapped
+    /// If this is a [`CombinedUserError::MissingPermissions`] error, replace the wrapped
     /// errors with the given permissions
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]

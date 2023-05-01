@@ -44,8 +44,8 @@ impl From<Reply> for InteractionResponseData {
 impl Reply {
     /// Create a new, empty reply message
     ///
-    /// At least one of [`Self::content`], [`Self::embed`], [`Self::component`],
-    /// [`Self::attachment`] must be called
+    /// At least one of [`Reply::content`], [`Reply::embed`],
+    /// [`Reply::component`], [`Reply::attachment`] must be called
     ///
     /// By default, the message is not ephemeral or TTS and its allowed mentions
     /// use the bot's default allowed mentions

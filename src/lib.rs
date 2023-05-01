@@ -301,8 +301,8 @@ impl Bot {
     ///
     /// It's recommended to pass [`EventTypeFlags::all`] if using a cache
     ///
-    /// By default [`Self::log`] only prints the message, see
-    /// [`Self::set_logging_channel`] and [`Self::set_logging_file`]
+    /// By default [`Bot::log`] only prints the message, see
+    /// [`Bot::set_logging_channel`] and [`Bot::set_logging_file`]
     ///
     /// If you need more customization, every field of [`Bot`] is public so you
     /// can create it with a struct literal

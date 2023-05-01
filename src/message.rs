@@ -29,7 +29,7 @@ impl Bot {
     ///
     /// The type parameter `Custom` is used to determine if the error is
     /// internal, if you don't have a custom error type, you can use
-    /// [`Self::handle_error_no_custom`]
+    /// [`Bot::handle_error_no_custom`]
     ///
     /// - If the given error should be ignored, simply returns early
     /// - If the given error is internal, logs the error
@@ -68,7 +68,7 @@ impl Bot {
 
     /// Handle an error without checking for a custom error type
     ///
-    /// See [`Self::handle_error`] for more information
+    /// See [`Bot::handle_error`] for more information
     pub async fn handle_error_no_custom(
         &self,
         channel_id: Id<ChannelMarker>,

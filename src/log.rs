@@ -96,17 +96,17 @@ impl Bot {
 
     /// Log the given message
     ///
-    /// - Unless [`Self::disable_logging_printing`] was called with false,
-    ///   prints the message
-    /// - If [`Self::set_logging_channel`] was called, executes a webhook with
+    /// - Unless [`Bot::disable_logging_printing`] was called with false, prints
+    ///   the message
+    /// - If [`Bot::set_logging_channel`] was called, executes a webhook with
     ///   the message in an attachment (An attachment is used to raise the
     ///   character limit)
-    /// - If [`Self::set_logging_file`] was called, appends the message to the
+    /// - If [`Bot::set_logging_file`] was called, appends the message to the
     ///   file
     ///
     /// If there's an error with logging, also logs the error
     ///
-    /// Uses value set with [`Self::set_logging_format`]
+    /// Uses value set with [`Bot::set_logging_format`]
     pub async fn log<T: Display + Debug + Send>(&self, message: T) {
         let mut s = String::new();
         self.logging_format.writeln(&mut s, &message);

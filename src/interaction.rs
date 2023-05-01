@@ -155,13 +155,13 @@ impl InteractionHandle<'_> {
     ///
     /// The type parameter `Custom` is used to determine if the error is
     /// internal, if you don't have a custom error type, you can use
-    /// [`Self::handle_error_no_custom`]
+    /// [`InteractionHandle::handle_error_no_custom`]
     ///
     /// - If the given error should be ignored, simply returns early
     /// - If the given error is internal, logs the error
     /// - Tries to reply to the interaction with the given reply, if it fails
     ///   and the error is internal, logs the error, if it succeeds, returns
-    ///   what [`Self::reply`] would return
+    ///   what [`InteractionHandle::reply`] would return
     #[deprecated(note = "Use `report_error` instead and do the internal error handling yourself")]
     pub async fn handle_error<Custom: Display + Debug + Send + Sync + 'static>(
         &self,
@@ -193,7 +193,7 @@ impl InteractionHandle<'_> {
 
     /// Handle an error without checking for a custom error type
     ///
-    /// See [`Self::handle_error`] for more information
+    /// See [`InteractionHandle::handle_error`] for more information
     #[deprecated(note = "Use `report_error` instead and do the internal error handling yourself")]
     pub async fn handle_error_no_custom(
         &self,
@@ -213,7 +213,7 @@ impl InteractionHandle<'_> {
     /// - If the given error should be ignored, simply returns `Ok(None)` early
     /// - Tries to reply to the interaction with the given reply
     ///     - If that fails and the error is internal, returns the error
-    ///     - If it succeeds, returns what [`Self::reply`] returns
+    ///     - If it succeeds, returns what [`InteractionHandle::reply`] returns
     #[allow(clippy::missing_errors_doc)]
     pub async fn report_error<C: Send>(
         &self,
@@ -240,7 +240,7 @@ impl InteractionHandle<'_> {
 
     /// Defer the interaction
     ///
-    /// The `visibility` parameter only affects the first [`Self::reply`]
+    /// The `visibility` parameter only affects the first [`InteractionHandle::reply`]
     ///
     /// # Warning
     ///
@@ -260,7 +260,7 @@ impl InteractionHandle<'_> {
 
     /// Defer a component interaction
     ///
-    /// The `visibility` parameter only affects the first [`Self::reply`]
+    /// The `visibility` parameter only affects the first [`InteractionHandle::reply`]
     ///
     /// # Errors
     ///
@@ -288,7 +288,7 @@ impl InteractionHandle<'_> {
 
     /// Defer the interaction
     ///
-    /// The `visibility` parameter only affects the first [`Self::reply`]
+    /// The `visibility` parameter only affects the first [`InteractionHandle::reply`]
     ///
     /// `behavior` parameter only has an effect on component interactions
     ///
@@ -344,8 +344,8 @@ impl InteractionHandle<'_> {
     /// otherwise responds to the interaction with a message
     ///
     /// Discord gives 3 seconds of deadline to respond to an interaction, if the
-    /// reply might take longer, consider using [`Self::defer`] or
-    /// [`Self::defer_component`] before this method
+    /// reply might take longer, consider using [`InteractionHandle::defer`] or
+    /// [`InteractionHandle::defer_component`] before this method
     ///
     /// - If this is the first response sent, returns `None`
     /// - Unless [`Reply::update_last`] was called, returns `Some`
