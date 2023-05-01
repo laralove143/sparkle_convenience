@@ -3,9 +3,6 @@ use twilight_model::{
     http::{attachment::Attachment, interaction::InteractionResponseData},
 };
 
-#[cfg(doc)]
-use crate::interaction::InteractionHandle;
-
 /// The message to reply with, combining similar data in messages, interactions
 /// and webhooks
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -134,6 +131,8 @@ impl Reply {
     /// Make the reply update the last reply if one exists
     ///
     /// Currently only available in [`InteractionHandle`]
+    ///
+    /// [`InteractionHandle`]: crate::interaction::InteractionHandle
     #[must_use]
     pub const fn update_last(mut self) -> Self {
         self.update_last = true;

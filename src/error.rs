@@ -9,9 +9,6 @@ use anyhow::anyhow;
 use extract::HttpErrorExt;
 use twilight_model::guild::Permissions;
 
-#[cfg(doc)]
-use crate::{interaction::InteractionHandle, Bot};
-
 /// Extracting data from Twilight's errors
 #[deprecated(note = "will be removed due to low usage")]
 pub mod extract;
@@ -74,6 +71,9 @@ pub enum UserError {
     /// `None` when the error occurred outside of
     /// [`InteractionHandle::check_permissions`] and
     /// [`ErrorExt::with_permissions`] wasn't called
+    ///
+    /// [`InteractionHandle::check_permissions`]:
+    /// crate::interaction::InteractionHandle::check_permissions
     #[error("a user error has been handled like an internal error")]
     MissingPermissions(Option<Permissions>),
     /// The error is safe to ignore
@@ -104,6 +104,9 @@ pub enum CombinedUserError<C> {
     /// `None` when the error occurred outside of
     /// [`InteractionHandle::combined_check_permissions`] and
     /// [`CombinedUserError::with_permissions`] wasn't called
+    ///
+    /// [`InteractionHandle::combined_check_permissions`]:
+    /// crate::interaction::InteractionHandle::combined_check_permissions
     MissingPermissions(Option<Permissions>),
     /// A custom error was returned
     Custom(C),
@@ -197,6 +200,9 @@ impl Display for NoCustomError {
 /// You should prefer these methods only for [`ErrorExt::with_permissions`] or
 /// if [`InteractionHandle::handle_error`] or [`Bot::handle_error`] aren't
 /// enough
+///
+/// [`Bot::handle_error`]: crate::Bot::handle_error
+/// [`InteractionHandle::handle_error`]: crate::interaction::InteractionHandle
 #[allow(clippy::module_name_repetitions)]
 #[deprecated(note = "Use `CombinedUserError` instead")]
 pub trait ErrorExt: Sized {
@@ -212,6 +218,8 @@ pub trait ErrorExt: Sized {
     /// encounter but they may also be caused by internal errors (i.e trying to
     /// make a request on a guild that the bot is not in), there is
     /// unfortunately no way to differentiate between the two
+    ///
+    /// [`Bot`]: crate::Bot
     fn user(&self) -> Option<UserError>;
 
     /// Attaches the given permissions if the error is
@@ -228,6 +236,9 @@ pub trait ErrorExt: Sized {
     /// nothing if the error is not [`UserError::MissingPermissions`], so if
     /// the error returns [`UserError::MissingPermissions`] later on, its
     /// permissions will still be `None`
+    ///
+    /// [`InteractionHandle::check_permissions`]:
+    /// crate::interaction::InteractionHandle::check_permissions
     #[must_use]
     fn with_permissions(self, required_permissions: Permissions) -> Self;
 
