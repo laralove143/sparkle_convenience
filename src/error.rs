@@ -37,6 +37,7 @@ impl<T> IntoError<T> for Option<T> {
 pub enum Error {
     /// A [`UserError`] was returned
     #[error("{0}")]
+    #[deprecated]
     User(#[from] UserError),
     /// A response that has to be the first was called on a responded
     /// interaction
