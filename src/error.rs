@@ -83,17 +83,16 @@ pub enum UserError {
 
 /// A user-facing error
 ///
-/// Can be created using [`CombinedUserError::from<anyhow::Error>`]
+/// You should prefer creating this using the methods, since they do some checks
+/// for you
 ///
 /// `C` is your error type for custom user errors, if you don't have one, you
 /// can pass [`NoCustomError`]
 ///
-/// # Warnings
+/// # Display Implementation
 ///
-/// - It's recommended to use the same type for `C` all around to avoid
-///   unexpected return values in [`CombinedUserError::from<anyhow::Error>`]
-/// - The display implementation of this is added to be compatible with
-///   `anyhow::Error` and shouldn't be used
+/// The display implementation of this is added to be compatible with
+/// `anyhow::Error` and shouldn't be used
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[allow(clippy::module_name_repetitions)]
 pub enum CombinedUserError<C> {
@@ -106,11 +105,14 @@ pub enum CombinedUserError<C> {
     /// A custom error was returned
     Custom(C),
     /// An error has occurred on the application's side
-    ///
-    /// This is the fallback kind when the error given to
-    /// [`CombinedUserError::from<anyhow::Error>`] isn't [`CombinedUserError`]
-    /// or `C`
     Internal,
+    /// The error is safe to ignore
+    ///
+    /// In this case, the error shouldn't even be reported to the user
+    ///
+    /// Returned when the source error is [`HttpErrorExt::unknown_message`],
+    /// [`HttpErrorExt::failed_dm`] or [`HttpErrorExt::reaction_blocked`]
+    Ignore,
 }
 
 impl<C> Display for CombinedUserError<C> {
@@ -119,7 +121,49 @@ impl<C> Display for CombinedUserError<C> {
     }
 }
 
+impl<C: Clone + Display + Debug + Send + Sync + 'static> CombinedUserError<C> {
+    /// Create this error from [`anyhow::Error`]
+    ///
+    /// # Warning
+    ///
+    /// - It's recommended to use the same type for `C` all around to avoid
+    ///   unexpected return values
+    #[must_use]
+    pub fn from_anyhow_err(err: &anyhow::Error) -> Self {
+        if let Some(user_err) = err.downcast_ref::<Self>() {
+            return user_err.clone();
+        };
+
+        if let Some(custom_err) = err.downcast_ref::<C>() {
+            return Self::Custom(custom_err.clone());
+        };
+
+        if let Some(http_err) = err.downcast_ref::<twilight_http::Error>() {
+            return Self::from_http_err(http_err);
+        }
+
+        Self::Internal
+    }
+}
+
 impl<C> CombinedUserError<C> {
+    /// Creates this error from an HTTP error
+    ///
+    /// This method is provided for those that don't use `anyhow`
+    ///
+    /// Checks if the error is a permission error or if it should be ignored,
+    /// returns [`Self::Internal`] if not
+    pub fn from_http_err(http_err: &twilight_http::Error) -> Self {
+        if http_err.unknown_message() || http_err.failed_dm() || http_err.reaction_blocked() {
+            return Self::Ignore;
+        }
+        if http_err.missing_permissions() || http_err.missing_access() {
+            return Self::MissingPermissions(None);
+        }
+
+        Self::Internal
+    }
+
     /// If this is a [`Self::MissingPermissions`] error, replace the wrapped
     /// errors with the given permissions
     #[must_use]
@@ -130,15 +174,6 @@ impl<C> CombinedUserError<C> {
         } else {
             self
         }
-    }
-}
-
-impl<C: Display + Debug + Send + Sync + 'static> From<anyhow::Error> for CombinedUserError<C> {
-    fn from(err: anyhow::Error) -> Self {
-        err.downcast::<Self>().unwrap_or_else(|err| {
-            err.downcast::<C>()
-                .map_or(Self::Internal, |custom_err| Self::Custom(custom_err))
-        })
     }
 }
 
@@ -271,22 +306,24 @@ mod tests {
 
     #[test]
     fn combined_user_err_downcast() {
-        let missing_perms_from_anyhow: CombinedUserError<CustomError> =
-            anyhow::anyhow!(CombinedUserError::MissingPermissions::<CustomError>(None)).into();
+        let missing_perms_from_anyhow = CombinedUserError::<CustomError>::from_anyhow_err(
+            &anyhow::anyhow!(CombinedUserError::MissingPermissions::<CustomError>(None)),
+        );
         assert!(matches!(
             missing_perms_from_anyhow,
             CombinedUserError::MissingPermissions(None)
         ));
 
-        let custom_from_anyhow: CombinedUserError<CustomError> =
-            anyhow::anyhow!(CombinedUserError::Custom(CustomError::TooSlay)).into();
+        let custom_from_anyhow = CombinedUserError::from_anyhow_err(&anyhow::anyhow!(
+            CombinedUserError::Custom(CustomError::TooSlay)
+        ));
         assert!(matches!(
             custom_from_anyhow,
             CombinedUserError::Custom(CustomError::TooSlay)
         ));
 
-        let internal_from_anyhow: CombinedUserError<CustomError> =
-            anyhow::anyhow!("feature occurred").into();
+        let internal_from_anyhow =
+            CombinedUserError::from_anyhow_err(&anyhow::anyhow!("feature occurred"));
         assert!(matches!(
             internal_from_anyhow,
             CombinedUserError::<CustomError>::Internal

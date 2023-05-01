@@ -28,7 +28,7 @@ use twilight_model::{
 };
 
 use crate::{
-    error::{Error, ErrorExt, NoCustomError, UserError},
+    error::{CombinedUserError, Error, ErrorExt, NoCustomError, UserError},
     reply::Reply,
     Bot,
 };
@@ -135,6 +135,7 @@ impl InteractionHandle<'_> {
     /// - Tries to reply to the interaction with the given reply, if it fails
     ///   and the error is internal, logs the error, if it succeeds, returns
     ///   what [`Self::reply`] would return
+    #[deprecated(note = "Use `handle_user_error` instead")]
     pub async fn handle_error<Custom: Display + Debug + Send + Sync + 'static>(
         &self,
         reply: Reply,
@@ -166,12 +167,48 @@ impl InteractionHandle<'_> {
     /// Handle an error without checking for a custom error type
     ///
     /// See [`Self::handle_error`] for more information
+    #[deprecated(note = "Use `handle_user_error` instead")]
     pub async fn handle_error_no_custom(
         &self,
         reply: Reply,
         error: anyhow::Error,
     ) -> Option<Message> {
         self.handle_error::<NoCustomError>(reply, error).await
+    }
+
+    /// Report an error returned in an interaction to the user
+    ///
+    /// The passed reply should be the reply that should be shown to the user
+    /// based on the error
+    ///
+    /// See [`CombinedUserError`] for creating the error parameter
+    ///
+    /// - If the given error should be ignored, simply returns `Ok(None)` early
+    /// - Tries to reply to the interaction with the given reply
+    ///     - If that fails and the error is internal, returns the error
+    ///     - If it succeeds, returns what [`Self::reply`] returns
+    #[allow(clippy::missing_errors_doc)]
+    pub async fn report_error<C: Send>(
+        &self,
+        reply: Reply,
+        error: CombinedUserError<C>,
+    ) -> Result<Option<Message>, Error> {
+        if let CombinedUserError::Ignore = error {
+            return Ok(None);
+        }
+
+        match self.reply(reply).await {
+            Ok(message) => Ok(message),
+            Err(Error::Http(err))
+                if matches!(
+                    CombinedUserError::<C>::from_http_err(&err),
+                    CombinedUserError::Internal
+                ) =>
+            {
+                Err(Error::Http(err))
+            }
+            Err(err) => Err(err),
+        }
     }
 
     /// Defer the interaction
