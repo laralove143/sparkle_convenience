@@ -276,30 +276,14 @@ impl InteractionHandle<'_> {
         self.defer_with_behavior(visibility, behavior).await
     }
 
-    /// # Deprecated
-    ///
-    /// This simply calls `self.defer_with_behavior(ephemeral,
+    /// Simply calls `self.defer_with_behavior(DeferVisibility::Visible,
     /// DeferBehavior::Update)`
-    #[deprecated]
+    #[deprecated(note = "use `self.defer_with_behavior(DeferVisibility::Visible, \
+                         DeferBehavior::Update)` instead")]
     #[allow(clippy::missing_errors_doc)]
     pub async fn defer_update_message(&self) -> Result<(), Error> {
-        if self.responded() {
-            return Err(Error::AlreadyResponded);
-        }
-
-        let defer_response = InteractionResponse {
-            kind: InteractionResponseType::DeferredUpdateMessage,
-            data: None,
-        };
-
-        self.bot
-            .interaction_client()
-            .create_response(self.id, &self.token, &defer_response)
-            .await?;
-
-        self.set_responded(true);
-
-        Ok(())
+        self.defer_with_behavior(DeferVisibility::Visible, DeferBehavior::Update)
+            .await
     }
 
     /// Defer the interaction
@@ -478,10 +462,8 @@ impl InteractionHandle<'_> {
         }
     }
 
-    /// # Deprecated
-    ///
-    /// This simply calls `self.reply(reply.update_last())`
-    #[deprecated]
+    /// Simply calls `self.reply(reply.update_last())`
+    #[deprecated(note = "Use `self.reply(reply.update_last())` instead")]
     #[allow(clippy::missing_errors_doc)]
     pub async fn update_message(&self, reply: Reply) -> Result<Option<Message>, Error> {
         self.reply(reply.update_last()).await
