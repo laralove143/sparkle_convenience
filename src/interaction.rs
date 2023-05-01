@@ -242,6 +242,70 @@ impl InteractionHandle<'_> {
     ///
     /// The `visibility` parameter only affects the first [`Self::reply`]
     ///
+    /// # Warning
+    ///
+    /// If responding to a component interaction, use
+    /// [`InteractionHandle::defer_component`] instead
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::AlreadyResponded`] if this is not the first
+    /// response to the interaction
+    ///
+    /// Returns [`Error::Http`] if deferring the interaction fails
+    pub async fn defer(&self, visibility: DeferVisibility) -> Result<(), Error> {
+        self.defer_with_behavior(visibility, DeferBehavior::Followup)
+            .await
+    }
+
+    /// Defer a component interaction
+    ///
+    /// The `visibility` parameter only affects the first [`Self::reply`]
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::AlreadyResponded`] if this is not the first
+    /// response to the interaction
+    ///
+    /// Returns [`Error::Http`] if deferring the interaction fails
+    pub async fn defer_component(
+        &self,
+        visibility: DeferVisibility,
+        behavior: DeferBehavior,
+    ) -> Result<(), Error> {
+        self.defer_with_behavior(visibility, behavior).await
+    }
+
+    /// # Deprecated
+    ///
+    /// This simply calls `self.defer_with_behavior(ephemeral,
+    /// DeferBehavior::Update)`
+    #[deprecated]
+    #[allow(clippy::missing_errors_doc)]
+    pub async fn defer_update_message(&self) -> Result<(), Error> {
+        if self.responded() {
+            return Err(Error::AlreadyResponded);
+        }
+
+        let defer_response = InteractionResponse {
+            kind: InteractionResponseType::DeferredUpdateMessage,
+            data: None,
+        };
+
+        self.bot
+            .interaction_client()
+            .create_response(self.id, &self.token, &defer_response)
+            .await?;
+
+        self.set_responded(true);
+
+        Ok(())
+    }
+
+    /// Defer the interaction
+    ///
+    /// The `visibility` parameter only affects the first [`Self::reply`]
+    ///
     /// `behavior` parameter only has an effect on component interactions
     ///
     /// # Errors
@@ -250,6 +314,7 @@ impl InteractionHandle<'_> {
     /// response to the interaction
     ///
     /// Returns [`Error::Http`] if deferring the interaction fails
+    #[deprecated(note = "use `defer` or `defer_component` instead ")]
     pub async fn defer_with_behavior(
         &self,
         visibility: DeferVisibility,
@@ -277,43 +342,6 @@ impl InteractionHandle<'_> {
                     .then_some(MessageFlags::EPHEMERAL),
                 ..Default::default()
             }),
-        };
-
-        self.bot
-            .interaction_client()
-            .create_response(self.id, &self.token, &defer_response)
-            .await?;
-
-        self.set_responded(true);
-
-        Ok(())
-    }
-
-    /// # Deprecated
-    ///
-    /// This simply calls `self.defer_with_behavior(ephemeral,
-    /// DeferBehavior::Followup)`
-    #[deprecated]
-    #[allow(clippy::missing_errors_doc)]
-    pub async fn defer(&self, ephemeral: DeferVisibility) -> Result<(), Error> {
-        self.defer_with_behavior(ephemeral, DeferBehavior::Followup)
-            .await
-    }
-
-    /// # Deprecated
-    ///
-    /// This simply calls `self.defer_with_behavior(ephemeral,
-    /// DeferBehavior::Update)`
-    #[deprecated]
-    #[allow(clippy::missing_errors_doc)]
-    pub async fn defer_update_message(&self) -> Result<(), Error> {
-        if self.responded() {
-            return Err(Error::AlreadyResponded);
-        }
-
-        let defer_response = InteractionResponse {
-            kind: InteractionResponseType::DeferredUpdateMessage,
-            data: None,
         };
 
         self.bot
