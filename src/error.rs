@@ -42,9 +42,8 @@ pub enum Error {
     #[error("{0}")]
     #[deprecated]
     User(#[from] UserError),
-    /// A response that has to be the first was called on a responded
-    /// interaction
-    #[error("a response that has to be the first was called on a responded interaction")]
+    /// Tried to send an initial response for an interaction multiple times
+    #[error("initial response for that interaction has already been sent")]
     AlreadyResponded,
     /// A [`twilight_http::Error`] was returned
     #[error("{0}")]
