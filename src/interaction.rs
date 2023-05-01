@@ -359,22 +359,22 @@ impl InteractionHandle<'_> {
     /// If the interaction was already responded to, makes a followup response,
     /// otherwise responds to the interaction with a message
     ///
-    /// If a followup was created or [`Reply::update_last`] was called and no
-    /// followup was created before, returns `Some`, otherwise returns `None`,
-    /// the response is deserialized to track the last sent message
-    ///
     /// Discord gives 3 seconds of deadline to respond to an interaction, if the
-    /// reply might take longer, consider using [`Self::defer_with_behavior`]
-    /// before this method
+    /// reply might take longer, consider using [`Self::defer`] or
+    /// [`Self::defer_component`] before this method
+    ///
+    /// - If this is the first response sent, returns `None`
+    /// - Unless [`Reply::update_last`] was called, returns `Some`
+    /// - If [`Reply::update_last`] was called and this is the first response,
+    ///   returns `Some`
+    /// - If [`Reply::update_last`] was called but this isn't the first
+    ///   response, returns `None`
     ///
     /// # Updating Last Response
     ///
     /// You can use [`Reply::update_last`] to update the last response, the
     /// update overwrites all of the older response, if one doesn't exist, it
     /// makes a new response
-    ///
-    /// Has no effect if this is the first reply after the interaction was
-    /// deferred
     ///
     /// On component interactions, if there is no later response, updates the
     /// message the component is attached to
