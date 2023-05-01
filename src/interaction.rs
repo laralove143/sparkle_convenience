@@ -111,9 +111,34 @@ impl InteractionHandle<'_> {
     ///
     /// # Errors
     ///
+    /// Returns [`CombinedUserError::MissingPermissions`] if the bot doesn't
+    /// have the required permissions, the wrapped permissions are the
+    /// permissions the bot is missing
+    pub fn combined_check_permissions<C>(
+        &self,
+        required_permissions: Permissions,
+    ) -> Result<(), CombinedUserError<C>> {
+        let missing_permissions = required_permissions - self.app_permissions;
+        if !missing_permissions.is_empty() {
+            return Err(CombinedUserError::MissingPermissions(Some(
+                missing_permissions,
+            )));
+        }
+
+        Ok(())
+    }
+
+    /// Check that the bot has the required permissions
+    ///
+    /// Always returns `Ok` in DM channels, make sure the command can actually
+    /// run in DMs
+    ///
+    /// # Errors
+    ///
     /// Returns [`UserError::MissingPermissions`] if the bot doesn't have the
     /// required permissions, the wrapped permissions are the permissions
     /// the bot is missing
+    #[deprecated(note = "use `combined_check_permissions` instead")]
     pub fn check_permissions(&self, required_permissions: Permissions) -> Result<(), UserError> {
         let missing_permissions = required_permissions - self.app_permissions;
         if !missing_permissions.is_empty() {

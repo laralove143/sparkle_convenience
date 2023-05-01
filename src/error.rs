@@ -102,7 +102,7 @@ pub enum CombinedUserError<C> {
     /// The bot is missing some required permissions
     ///
     /// `None` when the error occurred outside of
-    /// [`InteractionHandle::check_permissions`] and
+    /// [`InteractionHandle::combined_check_permissions`] and
     /// [`CombinedUserError::with_permissions`] wasn't called
     MissingPermissions(Option<Permissions>),
     /// A custom error was returned
