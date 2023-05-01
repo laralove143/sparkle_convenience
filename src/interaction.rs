@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use std::{
     fmt::{Debug, Display},
     sync::{
@@ -135,7 +137,7 @@ impl InteractionHandle<'_> {
     /// - Tries to reply to the interaction with the given reply, if it fails
     ///   and the error is internal, logs the error, if it succeeds, returns
     ///   what [`Self::reply`] would return
-    #[deprecated(note = "Use `handle_user_error` instead")]
+    #[deprecated(note = "Use `report_error` instead and do the internal error handling yourself")]
     pub async fn handle_error<Custom: Display + Debug + Send + Sync + 'static>(
         &self,
         reply: Reply,
@@ -167,7 +169,7 @@ impl InteractionHandle<'_> {
     /// Handle an error without checking for a custom error type
     ///
     /// See [`Self::handle_error`] for more information
-    #[deprecated(note = "Use `handle_user_error` instead")]
+    #[deprecated(note = "Use `report_error` instead and do the internal error handling yourself")]
     pub async fn handle_error_no_custom(
         &self,
         reply: Reply,

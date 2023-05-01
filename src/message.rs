@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use std::fmt::{Debug, Display};
 
 use anyhow;

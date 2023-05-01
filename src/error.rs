@@ -1,18 +1,21 @@
+#![allow(deprecated)]
+
 use std::{
     any::type_name,
     fmt::{Debug, Display, Formatter},
 };
 
 use anyhow::anyhow;
+use extract::HttpErrorExt;
 use twilight_model::guild::Permissions;
 
-use crate::error::extract::HttpErrorExt;
 #[cfg(doc)]
 use crate::{interaction::InteractionHandle, Bot};
 
 /// Extracting data from Twilight's errors
 #[deprecated(note = "will be removed due to low usage")]
 pub mod extract;
+mod http_error;
 
 /// Trait implemented on types that can be converted into an [`anyhow::Error`]
 #[allow(clippy::module_name_repetitions)]
@@ -110,9 +113,6 @@ pub enum CombinedUserError<C> {
     /// The error is safe to ignore
     ///
     /// In this case, the error shouldn't even be reported to the user
-    ///
-    /// Returned when the source error is [`HttpErrorExt::unknown_message`],
-    /// [`HttpErrorExt::failed_dm`] or [`HttpErrorExt::reaction_blocked`]
     Ignore,
 }
 
@@ -150,19 +150,20 @@ impl<C: Clone + Display + Debug + Send + Sync + 'static> CombinedUserError<C> {
 impl<C> CombinedUserError<C> {
     /// Creates this error from an HTTP error
     ///
-    /// This method is provided for those that don't use `anyhow`
+    /// If you use `anyhow`, use [`Self::from_anyhow_err`] instead
     ///
     /// Checks if the error is a permission error or if it should be ignored,
     /// returns [`Self::Internal`] if not
-    pub fn from_http_err(http_err: &twilight_http::Error) -> Self {
-        if http_err.unknown_message() || http_err.failed_dm() || http_err.reaction_blocked() {
-            return Self::Ignore;
+    pub const fn from_http_err(http_err: &twilight_http::Error) -> Self {
+        match http_error::Error::from_http_err(http_err) {
+            http_error::Error::UnknownMessage
+            | http_error::Error::FailedDm
+            | http_error::Error::ReactionBlocked => Self::Ignore,
+            http_error::Error::MissingPermissions | http_error::Error::MissingAccess => {
+                Self::MissingPermissions(None)
+            }
+            http_error::Error::Unknown => Self::Internal,
         }
-        if http_err.missing_permissions() || http_err.missing_access() {
-            return Self::MissingPermissions(None);
-        }
-
-        Self::Internal
     }
 
     /// If this is a [`Self::MissingPermissions`] error, replace the wrapped
@@ -198,7 +199,7 @@ impl Display for NoCustomError {
 /// if [`InteractionHandle::handle_error`] or [`Bot::handle_error`] aren't
 /// enough
 #[allow(clippy::module_name_repetitions)]
-#[deprecated(note = "Use [`Bot::handle_error`] or [`InteractionHandle::handle_error`] instead")]
+#[deprecated(note = "Use `CombinedUserError` instead")]
 pub trait ErrorExt: Sized {
     /// Extract the user-facing error if this is an error that should be
     /// reported to the user
