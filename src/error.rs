@@ -209,8 +209,6 @@ pub trait ErrorExt: Sized {
     /// Extract the user-facing error if this is an error that should be
     /// reported to the user
     ///
-    /// Refer to the example on [`Bot`] for the error handling flow
-    ///
     /// # Warning
     ///
     /// `Missing access` errors will be converted to
