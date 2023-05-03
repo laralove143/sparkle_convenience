@@ -57,24 +57,44 @@ impl ExecuteWebhookResponse {
 /// [`InteractionHandle::reply`]: crate::interaction::InteractionHandle::reply
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Reply {
-    pub(crate) content: String,
-    pub(crate) embeds: Vec<Embed>,
-    pub(crate) components: Vec<Component>,
-    pub(crate) attachments: Vec<Attachment>,
-    pub(crate) flags: MessageFlags,
+    /// The content of the reply
+    pub content: String,
+    /// The embeds of the reply
+    pub embeds: Vec<Embed>,
+    /// The components of the reply
+    pub components: Vec<Component>,
+    /// The attachments of the reply
+    pub attachments: Vec<Attachment>,
+    /// The flags of the reply
+    pub flags: MessageFlags,
+    /// The allowed mentions of the reply
+    ///
+    /// Use `None` to use the bot's default allowed mentions and `Some(None)` to
+    /// override this default
     #[allow(clippy::option_option)]
-    pub(crate) allowed_mentions: Option<Option<AllowedMentions>>,
-    pub(crate) tts: bool,
-    pub(crate) update_last: bool,
-    pub(crate) sticker_ids: Vec<Id<StickerMarker>>,
-    pub(crate) message_reference: Option<Id<MessageMarker>>,
-    pub(crate) nonce: Option<u64>,
-    pub(crate) missing_message_reference_handle_method: MissingMessageReferenceHandleMethod,
-    pub(crate) username: Option<String>,
-    pub(crate) avatar_url: Option<String>,
-    pub(crate) thread_id: Option<Id<ChannelMarker>>,
-    pub(crate) thread_name: Option<String>,
-    pub(crate) wait: bool,
+    pub allowed_mentions: Option<Option<AllowedMentions>>,
+    /// Whether the reply should be TTS
+    pub tts: bool,
+    /// See [`Reply::update_last`]
+    pub update_last: bool,
+    /// See [`Reply::sticker`]
+    pub sticker_ids: Vec<Id<StickerMarker>>,
+    /// See [`Reply::message_reference`]
+    pub message_reference: Option<Id<MessageMarker>>,
+    /// See [`Reply::nonce`]
+    pub nonce: Option<u64>,
+    /// See [`Reply::message_reference`]
+    pub missing_message_reference_handle_method: MissingMessageReferenceHandleMethod,
+    /// See [`Reply::username`]
+    pub username: Option<String>,
+    /// See [`Reply::avatar_url`]
+    pub avatar_url: Option<String>,
+    /// See [`Reply::thread_id`]
+    pub thread_id: Option<Id<ChannelMarker>>,
+    /// See [`Reply::thread_name`]
+    pub thread_name: Option<String>,
+    /// See [`Reply::wait`]
+    pub wait: bool,
 }
 
 impl Default for Reply {
