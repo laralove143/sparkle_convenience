@@ -81,6 +81,7 @@ impl Bot {
 }
 
 /// Convenience methods for [`twilight_http::Client`]
+#[deprecated(note = "Use `Reply::create_private_message` instead")]
 #[async_trait]
 #[allow(clippy::module_name_repetitions)]
 pub trait HttpExt {
@@ -103,8 +104,8 @@ impl HttpExt for twilight_http::Client {
 }
 
 /// Convenience methods for [`CreateMessage`]
+#[deprecated(note = "Use `Reply::create_message` instead")]
 #[async_trait]
-#[deprecated(note = "will be removed due to low usage")]
 pub trait CreateMessageExt<'a>: Sized {
     /// Add the given reply's data to the message
     ///

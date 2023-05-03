@@ -273,7 +273,7 @@ pub mod prettify;
 /// The [`reply::Reply`] struct
 pub mod reply;
 /// Convenient webhook handling
-#[deprecated(note = "will be removed due to low usage")]
+#[deprecated(note = "use `Reply::execute_webhook` instead")]
 pub mod webhook;
 
 /// All data required to make a bot run
