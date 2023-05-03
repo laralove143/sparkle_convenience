@@ -267,8 +267,8 @@ impl Reply {
     /// Only used when executing webhooks
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn username(mut self, username: String) -> Self {
-        self.username = Some(username);
+    pub fn username(mut self, username: impl Into<String>) -> Self {
+        self.username = Some(username.into());
         self
     }
 
@@ -277,8 +277,8 @@ impl Reply {
     /// Only used when executing webhooks
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn avatar_url(mut self, avatar_url: String) -> Self {
-        self.avatar_url = Some(avatar_url);
+    pub fn avatar_url(mut self, avatar_url: impl Into<String>) -> Self {
+        self.avatar_url = Some(avatar_url.into());
         self
     }
 
@@ -297,8 +297,8 @@ impl Reply {
     /// Only used when executing webhooks
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn thread_name(mut self, thread_name: String) -> Self {
-        self.thread_name = Some(thread_name);
+    pub fn thread_name(mut self, thread_name: impl Into<String>) -> Self {
+        self.thread_name = Some(thread_name.into());
         self
     }
 
