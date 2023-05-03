@@ -225,7 +225,7 @@ impl Reply {
     /// Only used in interactions
     #[must_use]
     pub const fn ephemeral(mut self) -> Self {
-        self.flags = MessageFlags::EPHEMERAL;
+        self.flags = self.flags.union(MessageFlags::EPHEMERAL);
         self
     }
 
