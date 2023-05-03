@@ -42,7 +42,7 @@ impl From<Reply> for InteractionResponseData {
 }
 
 impl Reply {
-    /// Create a new, empty reply message
+    /// Create a new, empty [`Reply`]
     ///
     /// At least one of [`Reply::content`], [`Reply::embed`],
     /// [`Reply::component`], [`Reply::attachment`] must be called
@@ -63,7 +63,7 @@ impl Reply {
         }
     }
 
-    /// Set the content of the reply message
+    /// Set the content of the reply
     ///
     /// This overwrites the previous content
     #[must_use]
@@ -72,28 +72,28 @@ impl Reply {
         self
     }
 
-    /// Add an embed to the reply message
+    /// Add an embed to the reply
     #[must_use]
     pub fn embed(mut self, embed: Embed) -> Self {
         self.embeds.push(embed);
         self
     }
 
-    /// Add a component to the reply message
+    /// Add a component to the reply
     #[must_use]
     pub fn component(mut self, component: Component) -> Self {
         self.components.push(component);
         self
     }
 
-    /// Add an attachment to the reply message
+    /// Add an attachment to the reply
     #[must_use]
     pub fn attachment(mut self, attachment: Attachment) -> Self {
         self.attachments.push(attachment);
         self
     }
 
-    /// Set the flags of the message
+    /// Set the flags of the reply
     ///
     /// # Warning
     ///
@@ -104,7 +104,7 @@ impl Reply {
         self
     }
 
-    /// Set the allowed mentions of the reply message
+    /// Set the allowed mentions of the reply
     ///
     /// Pass `None` to ignore the bot's default allowed mentions
     #[must_use]
@@ -114,14 +114,14 @@ impl Reply {
         self
     }
 
-    /// Make the reply message TTS
+    /// Make the reply TTS
     #[must_use]
     pub const fn tts(mut self) -> Self {
         self.tts = true;
         self
     }
 
-    /// Make the reply message ephemeral
+    /// Make the reply ephemeral
     #[must_use]
     pub const fn ephemeral(mut self) -> Self {
         self.flags = MessageFlags::EPHEMERAL;
