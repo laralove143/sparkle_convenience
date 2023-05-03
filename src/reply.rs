@@ -81,10 +81,10 @@ pub struct Reply {
     pub sticker_ids: Vec<Id<StickerMarker>>,
     /// See [`Reply::message_reference`]
     pub message_reference: Option<Id<MessageMarker>>,
-    /// See [`Reply::nonce`]
-    pub nonce: Option<u64>,
     /// See [`Reply::message_reference`]
     pub missing_message_reference_handle_method: MissingMessageReferenceHandleMethod,
+    /// See [`Reply::nonce`]
+    pub nonce: Option<u64>,
     /// See [`Reply::username`]
     pub username: Option<String>,
     /// See [`Reply::avatar_url`]
@@ -209,15 +209,6 @@ impl Reply {
         self
     }
 
-    /// Make the reply ephemeral
-    ///
-    /// Only used in interactions
-    #[must_use]
-    pub const fn ephemeral(mut self) -> Self {
-        self.flags = MessageFlags::EPHEMERAL;
-        self
-    }
-
     /// Make the reply update the last reply if one exists
     ///
     /// Currently only available in [`InteractionHandle`]
@@ -226,6 +217,15 @@ impl Reply {
     #[must_use]
     pub const fn update_last(mut self) -> Self {
         self.update_last = true;
+        self
+    }
+
+    /// Make the reply ephemeral
+    ///
+    /// Only used in interactions
+    #[must_use]
+    pub const fn ephemeral(mut self) -> Self {
+        self.flags = MessageFlags::EPHEMERAL;
         self
     }
 
