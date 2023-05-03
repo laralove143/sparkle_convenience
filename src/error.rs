@@ -36,8 +36,8 @@ impl<T> IntoError<T> for Option<T> {
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// A [`UserError`] was returned
+    #[deprecated(note = "this variant will be removed in the next release")]
     #[error("{0}")]
-    #[deprecated]
     User(#[from] UserError),
     /// Tried to send an initial response for an interaction multiple times
     #[error("initial response for that interaction has already been sent")]
@@ -62,9 +62,9 @@ pub enum Error {
 /// A user-facing error
 ///
 /// The display implementation on this should not be used
+#[deprecated(note = "use `CombinedUserError` instead")]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 #[allow(clippy::module_name_repetitions)]
-#[deprecated(note = "use `CombinedUserError` instead")]
 pub enum UserError {
     /// The bot is missing some required permissions
     ///
@@ -203,8 +203,8 @@ impl Display for NoCustomError {
 ///
 /// [`Bot::handle_error`]: crate::Bot::handle_error
 /// [`InteractionHandle::handle_error`]: crate::interaction::InteractionHandle
-#[allow(clippy::module_name_repetitions)]
 #[deprecated(note = "Use `CombinedUserError` instead")]
+#[allow(clippy::module_name_repetitions)]
 pub trait ErrorExt: Sized {
     /// Extract the user-facing error if this is an error that should be
     /// reported to the user

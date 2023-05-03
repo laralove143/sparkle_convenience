@@ -280,8 +280,7 @@ impl InteractionHandle<'_> {
 
     /// Simply calls `self.defer_with_behavior(DeferVisibility::Visible,
     /// DeferBehavior::Update)`
-    #[deprecated(note = "use `self.defer_with_behavior(DeferVisibility::Visible, \
-                         DeferBehavior::Update)` instead")]
+    #[deprecated(note = "use `defer_component` instead")]
     #[allow(clippy::missing_errors_doc)]
     pub async fn defer_update_message(&self) -> Result<(), Error> {
         self.defer_with_behavior(DeferVisibility::Visible, DeferBehavior::Update)
