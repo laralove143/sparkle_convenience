@@ -240,7 +240,8 @@ impl InteractionHandle<'_> {
 
     /// Defer the interaction
     ///
-    /// The `visibility` parameter only affects the first [`InteractionHandle::reply`]
+    /// The `visibility` parameter only affects the first
+    /// [`InteractionHandle::reply`]
     ///
     /// # Warning
     ///
@@ -260,7 +261,8 @@ impl InteractionHandle<'_> {
 
     /// Defer a component interaction
     ///
-    /// The `visibility` parameter only affects the first [`InteractionHandle::reply`]
+    /// The `visibility` parameter only affects the first
+    /// [`InteractionHandle::reply`]
     ///
     /// # Errors
     ///
@@ -288,7 +290,8 @@ impl InteractionHandle<'_> {
 
     /// Defer the interaction
     ///
-    /// The `visibility` parameter only affects the first [`InteractionHandle::reply`]
+    /// The `visibility` parameter only affects the first
+    /// [`InteractionHandle::reply`]
     ///
     /// `behavior` parameter only has an effect on component interactions
     ///

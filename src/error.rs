@@ -168,8 +168,8 @@ impl<C> CombinedUserError<C> {
         }
     }
 
-    /// If this is a [`CombinedUserError::MissingPermissions`] error, replace the wrapped
-    /// errors with the given permissions
+    /// If this is a [`CombinedUserError::MissingPermissions`] error, replace
+    /// the wrapped errors with the given permissions
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
     pub fn with_permissions(self, permissions: Permissions) -> Self {
