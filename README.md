@@ -19,6 +19,41 @@ relying on callbacks and mostly following Twilight patterns while making your li
 - Log internal errors with webhooks
 - Much more you can find out in the docs!
 
+## 😋 A TASTE OF CONVENIENCE
+
+```rust
+let bot = Bot::new(
+    "forgot to leak my token".to_owned(),
+    Intents::empty(),
+    EventTypeFlags::INTERACTION_CREATE,
+)
+.await?;
+
+let handle = bot.interaction_handle(&interaction);
+if interaction.name().ok()? == "pay_respects" {
+    handle.defer(DeferVisibility::Ephemeral).await?;
+    handle.check_permissions(Permissions::MANAGE_GUILD)?;
+    let very_respected_user = interaction.data.ok()?.command().ok()?.target_id.ok()?;
+
+    handle
+        .reply(
+            Reply::new()
+                .ephemeral()
+                .content("Paying respects".to_owned()),
+        )
+        .await?;
+
+    handle
+        .reply(
+            Reply::new()
+                .ephemeral()
+                .update_last()
+                .content(format!("<@{very_respected_user}> has +1 respect now")),
+        )
+        .await?;
+}
+```
+
 ## ✉️ CONTACT
 
 Feature Requests? Bugs? Support? Contributions? You name it, I'm always looking for community feedback from anyone who uses my work!
