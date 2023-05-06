@@ -1,3 +1,4 @@
+#[allow(deprecated)]
 use std::{
     fmt::{Debug, Display, Write as _},
     fs::File,
@@ -12,6 +13,7 @@ use twilight_model::{
 use crate::{error::Error, Bot};
 
 /// The format to use when converting a message to string
+#[deprecated(note = "Will be removed as `Bot::log` will take `String`")]
 #[derive(Clone, Copy, Debug)]
 pub enum DisplayFormat {
     /// Use the `Display` implementation on the type, akin to `format!("{x}")`
@@ -37,6 +39,7 @@ impl Bot {
     /// Set the format to use for converting messages to strings
     ///
     /// Defaults to [`DisplayFormat::Display`]
+    #[deprecated(note = "Will be removed as `Bot::log` will take `String`")]
     pub fn set_logging_format(&mut self, format: DisplayFormat) {
         self.logging_format = format;
     }
@@ -44,6 +47,7 @@ impl Bot {
     /// Disable printing messages when logging them
     ///
     /// It's enabled by default
+    #[deprecated(note = "Logging functionality will be reduced to webhooks only")]
     pub fn disable_logging_printing(&mut self) {
         self.logging_print_enabled = false;
     }
@@ -89,6 +93,7 @@ impl Bot {
     }
 
     /// Set the file to log messages to
+    #[deprecated(note = "Logging functionality will be reduced to webhooks only")]
     #[allow(clippy::missing_const_for_fn)]
     pub fn set_logging_file(&mut self, logging_file_path: String) {
         self.logging_file_path = Some(logging_file_path);

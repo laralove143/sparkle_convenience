@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 #![warn(
     clippy::cargo,
     clippy::nursery,
@@ -287,12 +288,15 @@ pub struct Bot {
     /// The user info of the bot
     pub user: CurrentUser,
     /// The format configuration for logging
+    #[deprecated(note = "Will be removed as `Bot::log` will take `String`")]
     pub logging_format: DisplayFormat,
     /// Whether to print messages when logging
+    #[deprecated(note = "Logging functionality will be reduced to webhooks only")]
     pub logging_print_enabled: bool,
     /// The webhook to log errors using
     pub logging_webhook: Option<(Id<WebhookMarker>, String)>,
     /// The file to append errors to
+    #[deprecated(note = "Logging functionality will be reduced to webhooks only")]
     pub logging_file_path: Option<String>,
 }
 
