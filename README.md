@@ -1,4 +1,5 @@
 [TWILIGHT_REPO_LINK]: https://github.com/twilight-rs/twilight
+
 [TWILIGHT_DISCORD_LINK]: https://discord.gg/twilight-rs
 
 # ✨😌 Sparkle Convenience
@@ -21,6 +22,7 @@ relying on callbacks and mostly following Twilight patterns while making your li
 
 ## 😋 A TASTE OF CONVENIENCE
 
+<!-- @formatter:off -->
 ```rust
 let bot = Bot::new(
     "forgot to leak my token".to_owned(),
@@ -53,9 +55,11 @@ if interaction.name().ok()? == "pay_respects" {
         .await?;
 }
 ```
+<!-- @formatter:on -->
 
 ## ✉️ CONTACT
 
-Feature Requests? Bugs? Support? Contributions? You name it, I'm always looking for community feedback from anyone who uses my work!
+Feature Requests? Bugs? Support? Contributions? You name it, I'm always looking for community feedback from anyone who
+uses my work!
 
 If you have a question, [join Twilight's Discord server please][TWILIGHT_DISCORD_LINK]
