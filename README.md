@@ -2,6 +2,14 @@
 
 [TWILIGHT_DISCORD_LINK]: https://discord.gg/twilight-rs
 
+# ❓ RC INFO
+
+This version isn't unstable, but it includes breaking changes. This isn't published at the next minor
+version to follow Twilight's version.
+
+RCs follow different versioning, meaning RC versions are breaking only between themselves. For example `0.1.0-rc.1` isn't
+breaking with `0.1.1-rc.1`, but `0.1.0-rc.2` is breaking with it
+
 # ✨😌 Sparkle Convenience
 
 - 🗄️ [GitHub](https://github.com/laralove143/sparkle-convenience)
