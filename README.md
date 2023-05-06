@@ -58,6 +58,4 @@ if interaction.name().ok()? == "pay_respects" {
 
 Feature Requests? Bugs? Support? Contributions? You name it, I'm always looking for community feedback from anyone who uses my work!
 
-_All I ask is that you attribute me if you do so_
-
-> If you have a question, [join Twilight's Discord server please][TWILIGHT_DISCORD_LINK]
+If you have a question, [join Twilight's Discord server please][TWILIGHT_DISCORD_LINK]
