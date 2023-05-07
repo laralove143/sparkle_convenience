@@ -99,7 +99,7 @@ impl Bot {
     /// Returns [`Error::Http`] or [`Error::DeserializeBody`] if getting the
     /// application info fails
     pub async fn new(
-        token: impl Into<String>,
+        token: impl Into<String> + Send,
         intents: Intents,
         event_types: EventTypeFlags,
     ) -> Result<(Self, Shards), Error> {

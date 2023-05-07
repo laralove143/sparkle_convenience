@@ -369,8 +369,8 @@ impl InteractionHandle<'_> {
     /// Returns [`Error::Http`] if creating the response fails
     pub async fn modal(
         &self,
-        custom_id: impl Into<String>,
-        title: impl Into<String>,
+        custom_id: impl Into<String> + Send,
+        title: impl Into<String> + Send,
         text_inputs: Vec<TextInput>,
     ) -> Result<(), Error> {
         let responded = self.responded();
@@ -387,8 +387,8 @@ impl InteractionHandle<'_> {
                 &InteractionResponse {
                     kind: InteractionResponseType::Modal,
                     data: Some(InteractionResponseData {
-                        custom_id: Some(custom_id),
-                        title: Some(title),
+                        custom_id: Some(custom_id.into()),
+                        title: Some(title.into()),
                         components: Some(
                             text_inputs
                                 .into_iter()
