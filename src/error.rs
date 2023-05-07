@@ -93,6 +93,8 @@ impl<C> Display for UserError<C> {
     }
 }
 
+impl<C: Debug> std::error::Error for UserError<C> {}
+
 impl<C: Clone + Display + Debug + Send + Sync + 'static> UserError<C> {
     /// Create this error from [`anyhow::Error`]
     ///
