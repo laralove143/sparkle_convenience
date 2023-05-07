@@ -76,6 +76,9 @@ pub enum UserError<C> {
     /// `None` when the error occurred outside of
     /// [`InteractionHandle::check_permissions`] or
     /// [`UserError::with_permissions`] wasn't called
+    ///
+    /// [`InteractionHandle::check_permissions`]:
+    /// crate::interaction::InteractionHandle::check_permissions
     MissingPermissions(Option<Permissions>),
     /// A custom error was returned
     Custom(C),
