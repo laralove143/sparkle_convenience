@@ -369,8 +369,8 @@ impl InteractionHandle<'_> {
     /// Returns [`Error::Http`] if creating the response fails
     pub async fn modal(
         &self,
-        custom_id: String,
-        title: String,
+        custom_id: impl Into<String>,
+        title: impl Into<String>,
         text_inputs: Vec<TextInput>,
     ) -> Result<(), Error> {
         let responded = self.responded();

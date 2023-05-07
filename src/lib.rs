@@ -99,15 +99,17 @@ impl Bot {
     /// Returns [`Error::Http`] or [`Error::DeserializeBody`] if getting the
     /// application info fails
     pub async fn new(
-        token: String,
+        token: impl Into<String>,
         intents: Intents,
         event_types: EventTypeFlags,
     ) -> Result<(Self, Shards), Error> {
-        let http = Client::new(token.clone());
+        let token_string = token.into();
+
+        let http = Client::new(token_string.clone());
 
         let shards = stream::create_recommended(
             &http,
-            ConfigBuilder::new(token.clone(), intents)
+            ConfigBuilder::new(token_string, intents)
                 .event_types(event_types)
                 .build(),
             |_, config_builder| config_builder.build(),
