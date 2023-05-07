@@ -18,7 +18,7 @@ use crate::error::Error;
 pub enum MissingMessageReferenceHandleMethod {
     /// Return an error
     Fail,
-    /// Ignore and don't set a reference
+    /// Ignore and don't set a message reference
     Ignore,
 }
 
