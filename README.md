@@ -31,7 +31,7 @@ relying on callbacks and mostly following Twilight patterns while making your li
 ## 😋 A TASTE OF CONVENIENCE
 
 <!-- @formatter:off -->
-```rust
+```rust,ignore
 let bot = Bot::new(
     "forgot to leak my token".to_owned(),
     Intents::empty(),
