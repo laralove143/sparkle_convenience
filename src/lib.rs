@@ -1,4 +1,3 @@
-#![allow(deprecated)]
 #![warn(
     clippy::cargo,
     clippy::nursery,
@@ -52,7 +51,6 @@
 use std::fmt::Debug;
 
 use error::Error;
-use log::DisplayFormat;
 use twilight_gateway::{stream, ConfigBuilder, EventTypeFlags, Intents, Shard};
 use twilight_http::Client;
 use twilight_model::{
@@ -65,17 +63,12 @@ use twilight_model::{
 pub mod error;
 /// Convenient interaction handling
 pub mod interaction;
-/// Logging methods on [`Bot`]
-pub mod log;
-/// Convenient message handling
-pub mod message;
+mod log;
+mod message;
 /// Formatting types into user-readable pretty strings
 pub mod prettify;
 /// The [`reply::Reply`] struct
 pub mod reply;
-/// Convenient webhook handling
-#[deprecated(note = "use `Reply::execute_webhook` instead")]
-pub mod webhook;
 
 /// All data required to make a bot run
 #[derive(Debug)]
@@ -87,26 +80,12 @@ pub struct Bot {
     pub application: Application,
     /// The user info of the bot
     pub user: CurrentUser,
-    /// The format configuration for logging
-    #[deprecated(note = "Will be removed as `Bot::log` will take `String`")]
-    pub logging_format: DisplayFormat,
-    /// Whether to print messages when logging
-    #[deprecated(note = "Logging functionality will be reduced to webhooks only")]
-    pub logging_print_enabled: bool,
     /// The webhook to log errors using
     pub logging_webhook: Option<(Id<WebhookMarker>, String)>,
-    /// The file to append errors to
-    #[deprecated(note = "Logging functionality will be reduced to webhooks only")]
-    pub logging_file_path: Option<String>,
 }
 
 impl Bot {
     /// Create a new bot with the given token, intents and event types
-    ///
-    /// It's recommended to pass [`EventTypeFlags::all`] if using a cache
-    ///
-    /// By default [`Bot::log`] only prints the message, see
-    /// [`Bot::set_logging_channel`] and [`Bot::set_logging_file`]
     ///
     /// If you need more customization, every field of [`Bot`] is public so you
     /// can create it with a struct literal
@@ -142,10 +121,7 @@ impl Bot {
                 http,
                 application,
                 user,
-                logging_format: DisplayFormat::Display,
-                logging_print_enabled: true,
                 logging_webhook: None,
-                logging_file_path: None,
             },
             shards,
         ))

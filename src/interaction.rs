@@ -1,7 +1,5 @@
-#![allow(deprecated)]
-
 use std::{
-    fmt::{Debug, Display},
+    fmt::Debug,
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
         Arc,
@@ -30,7 +28,7 @@ use twilight_model::{
 };
 
 use crate::{
-    error::{CombinedUserError, Error, ErrorExt, NoCustomError, UserError},
+    error::{Error, UserError},
     reply::Reply,
     Bot,
 };
@@ -106,40 +104,20 @@ impl Bot {
 impl InteractionHandle<'_> {
     /// Check that the bot has the required permissions
     ///
+    /// # Warning
+    ///
     /// Always returns `Ok` in DM channels, make sure the command can actually
     /// run in DMs
     ///
     /// # Errors
     ///
-    /// Returns [`CombinedUserError::MissingPermissions`] if the bot doesn't
+    /// Returns [`UserError::MissingPermissions`] if the bot doesn't
     /// have the required permissions, the wrapped permissions are the
     /// permissions the bot is missing
-    pub fn combined_check_permissions<C>(
+    pub fn check_permissions<C>(
         &self,
         required_permissions: Permissions,
-    ) -> Result<(), CombinedUserError<C>> {
-        let missing_permissions = required_permissions - self.app_permissions;
-        if !missing_permissions.is_empty() {
-            return Err(CombinedUserError::MissingPermissions(Some(
-                missing_permissions,
-            )));
-        }
-
-        Ok(())
-    }
-
-    /// Check that the bot has the required permissions
-    ///
-    /// Always returns `Ok` in DM channels, make sure the command can actually
-    /// run in DMs
-    ///
-    /// # Errors
-    ///
-    /// Returns [`UserError::MissingPermissions`] if the bot doesn't have the
-    /// required permissions, the wrapped permissions are the permissions
-    /// the bot is missing
-    #[deprecated(note = "use `combined_check_permissions` instead")]
-    pub fn check_permissions(&self, required_permissions: Permissions) -> Result<(), UserError> {
+    ) -> Result<(), UserError<C>> {
         let missing_permissions = required_permissions - self.app_permissions;
         if !missing_permissions.is_empty() {
             return Err(UserError::MissingPermissions(Some(missing_permissions)));
@@ -148,89 +126,35 @@ impl InteractionHandle<'_> {
         Ok(())
     }
 
-    /// Handle an error returned in an interaction
+    /// Report an error returned in an interaction context to the user
     ///
     /// The passed reply should be the reply that should be shown to the user
     /// based on the error
     ///
-    /// The type parameter `Custom` is used to determine if the error is
-    /// internal, if you don't have a custom error type, you can use
-    /// [`InteractionHandle::handle_error_no_custom`]
+    /// See [`UserError`] for creating the error parameter
     ///
-    /// - If the given error should be ignored, simply returns early
-    /// - If the given error is internal, logs the error
-    /// - Tries to reply to the interaction with the given reply, if it fails
-    ///   and the error is internal, logs the error, if it succeeds, returns
-    ///   what [`InteractionHandle::reply`] would return
-    #[deprecated(note = "Use `report_error` instead and do the internal error handling yourself")]
-    pub async fn handle_error<Custom: Display + Debug + Send + Sync + 'static>(
-        &self,
-        reply: Reply,
-        error: anyhow::Error,
-    ) -> Option<Message> {
-        if error.ignore() {
-            return None;
-        }
-
-        if let Some(internal_err) = error.internal::<Custom>() {
-            self.bot.log(internal_err).await;
-        }
-
-        match self
-            .reply(reply)
-            .await
-            .map_err(|err| anyhow::Error::new(err).internal::<Custom>())
-        {
-            Ok(message) => message,
-            Err(reply_err) => {
-                if let Some(reply_internal_err) = reply_err {
-                    self.bot.log(reply_internal_err).await;
-                }
-                None
-            }
-        }
-    }
-
-    /// Handle an error without checking for a custom error type
+    /// If the given error should be ignored, simply returns `Ok(None)` early
     ///
-    /// See [`InteractionHandle::handle_error`] for more information
-    #[deprecated(note = "Use `report_error` instead and do the internal error handling yourself")]
-    pub async fn handle_error_no_custom(
-        &self,
-        reply: Reply,
-        error: anyhow::Error,
-    ) -> Option<Message> {
-        self.handle_error::<NoCustomError>(reply, error).await
-    }
-
-    /// Report an error returned in an interaction to the user
+    /// Replies to the interaction with the given reply and returns what
+    /// [`InteractionHandle::reply`] returns
     ///
-    /// The passed reply should be the reply that should be shown to the user
-    /// based on the error
+    /// # Errors
     ///
-    /// See [`CombinedUserError`] for creating the error parameter
-    ///
-    /// - If the given error should be ignored, simply returns `Ok(None)` early
-    /// - Tries to reply to the interaction with the given reply
-    ///     - If that fails and the error is internal, returns the error
-    ///     - If it succeeds, returns what [`InteractionHandle::reply`] returns
-    #[allow(clippy::missing_errors_doc)]
+    /// If [`InteractionHandle::reply`] fails and the error is internal, returns
+    /// the error
     pub async fn report_error<C: Send>(
         &self,
         reply: Reply,
-        error: CombinedUserError<C>,
+        error: UserError<C>,
     ) -> Result<Option<Message>, Error> {
-        if let CombinedUserError::Ignore = error {
+        if let UserError::Ignore = error {
             return Ok(None);
         }
 
         match self.reply(reply).await {
             Ok(message) => Ok(message),
             Err(Error::Http(err))
-                if matches!(
-                    CombinedUserError::<C>::from_http_err(&err),
-                    CombinedUserError::Internal
-                ) =>
+                if matches!(UserError::<C>::from_http_err(&err), UserError::Internal) =>
             {
                 Err(Error::Http(err))
             }
@@ -276,68 +200,6 @@ impl InteractionHandle<'_> {
         behavior: DeferBehavior,
     ) -> Result<(), Error> {
         self.defer_with_behavior(visibility, behavior).await
-    }
-
-    /// Simply calls `self.defer_with_behavior(DeferVisibility::Visible,
-    /// DeferBehavior::Update)`
-    #[deprecated(note = "use `defer_component` instead")]
-    #[allow(clippy::missing_errors_doc)]
-    pub async fn defer_update_message(&self) -> Result<(), Error> {
-        self.defer_with_behavior(DeferVisibility::Visible, DeferBehavior::Update)
-            .await
-    }
-
-    /// Defer the interaction
-    ///
-    /// The `visibility` parameter only affects the first
-    /// [`InteractionHandle::reply`]
-    ///
-    /// `behavior` parameter only has an effect on component interactions
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::AlreadyResponded`] if this is not the first
-    /// response to the interaction
-    ///
-    /// Returns [`Error::Http`] if deferring the interaction fails
-    #[deprecated(note = "use `defer` or `defer_component` instead ")]
-    pub async fn defer_with_behavior(
-        &self,
-        visibility: DeferVisibility,
-        behavior: DeferBehavior,
-    ) -> Result<(), Error> {
-        if self.responded() {
-            return Err(Error::AlreadyResponded);
-        }
-
-        let kind = if self.kind == InteractionType::MessageComponent {
-            match behavior {
-                DeferBehavior::Followup => {
-                    InteractionResponseType::DeferredChannelMessageWithSource
-                }
-                DeferBehavior::Update => InteractionResponseType::DeferredUpdateMessage,
-            }
-        } else {
-            InteractionResponseType::DeferredChannelMessageWithSource
-        };
-
-        let defer_response = InteractionResponse {
-            kind,
-            data: Some(InteractionResponseData {
-                flags: (visibility == DeferVisibility::Ephemeral)
-                    .then_some(MessageFlags::EPHEMERAL),
-                ..Default::default()
-            }),
-        };
-
-        self.bot
-            .interaction_client()
-            .create_response(self.id, &self.token, &defer_response)
-            .await?;
-
-        self.set_responded(true);
-
-        Ok(())
     }
 
     /// Reply to this command
@@ -464,13 +326,6 @@ impl InteractionHandle<'_> {
         }
     }
 
-    /// Simply calls `self.reply(reply.update_last())`
-    #[deprecated(note = "Use `self.reply(reply.update_last())` instead")]
-    #[allow(clippy::missing_errors_doc)]
-    pub async fn update_message(&self, reply: Reply) -> Result<Option<Message>, Error> {
-        self.reply(reply.update_last()).await
-    }
-
     /// Respond to this command with autocomplete suggestions
     ///
     /// # Errors
@@ -548,6 +403,45 @@ impl InteractionHandle<'_> {
                     }),
                 },
             )
+            .await?;
+
+        self.set_responded(true);
+
+        Ok(())
+    }
+
+    async fn defer_with_behavior(
+        &self,
+        visibility: DeferVisibility,
+        behavior: DeferBehavior,
+    ) -> Result<(), Error> {
+        if self.responded() {
+            return Err(Error::AlreadyResponded);
+        }
+
+        let kind = if self.kind == InteractionType::MessageComponent {
+            match behavior {
+                DeferBehavior::Followup => {
+                    InteractionResponseType::DeferredChannelMessageWithSource
+                }
+                DeferBehavior::Update => InteractionResponseType::DeferredUpdateMessage,
+            }
+        } else {
+            InteractionResponseType::DeferredChannelMessageWithSource
+        };
+
+        let defer_response = InteractionResponse {
+            kind,
+            data: Some(InteractionResponseData {
+                flags: (visibility == DeferVisibility::Ephemeral)
+                    .then_some(MessageFlags::EPHEMERAL),
+                ..Default::default()
+            }),
+        };
+
+        self.bot
+            .interaction_client()
+            .create_response(self.id, &self.token, &defer_response)
             .await?;
 
         self.set_responded(true);
