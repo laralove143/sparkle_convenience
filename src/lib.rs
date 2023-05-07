@@ -51,7 +51,9 @@
 use std::fmt::Debug;
 
 use error::Error;
-use twilight_gateway::{stream, ConfigBuilder, EventTypeFlags, Intents, Shard};
+use twilight_gateway::{
+    stream, stream::ShardEventStream, ConfigBuilder, EventTypeFlags, Intents, Shard,
+};
 use twilight_http::Client;
 use twilight_model::{
     id::{marker::WebhookMarker, Id},
@@ -100,7 +102,7 @@ impl Bot {
         token: String,
         intents: Intents,
         event_types: EventTypeFlags,
-    ) -> Result<(Self, Vec<Shard>), Error> {
+    ) -> Result<(Self, Shards), Error> {
         let http = Client::new(token.clone());
 
         let shards = stream::create_recommended(
@@ -123,7 +125,25 @@ impl Bot {
                 user,
                 logging_webhook: None,
             },
-            shards,
+            Shards(shards),
         ))
+    }
+}
+
+/// Thin wrapper over the bot's shards for abstracting event streams
+///
+/// Returned in [`Bot::new`]
+#[derive(Debug)]
+pub struct Shards(pub Vec<Shard>);
+
+impl Shards {
+    /// Return Twilight's event stream
+    ///
+    /// # Warning
+    ///
+    /// This method shouldn't be called repeatedly, you should instead assign
+    /// the stream to a variable and call `next` on that
+    pub fn events(&mut self) -> ShardEventStream<'_> {
+        ShardEventStream::new(self.0.iter_mut())
     }
 }
