@@ -318,9 +318,11 @@ impl Reply {
     /// # Errors
     ///
     /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
-    /// [`twilight_http::request::channel::message::create_message::CreateMessage`])
+    /// [`CreateMessage`])
     ///
     /// Returns [`Error::Http`] if creating the message fails
+    ///
+    /// [`CreateMessage`]: twilight_http::request::channel::message::create_message::CreateMessage
     pub async fn create_message(
         &self,
         http: &twilight_http::Client,
@@ -367,11 +369,13 @@ impl Reply {
     /// # Errors
     ///
     /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
-    /// [`twilight_http::request::channel::message::create_message::CreateMessage`])
+    /// [`CreateMessage`])
     ///
     /// Returns [`Error::DeserializeBody`] if deserializing the message fails
     ///
     /// Returns [`Error::Http`] if creating the message fails
+    ///
+    /// [`CreateMessage`]: twilight_http::request::channel::message::create_message::CreateMessage
     pub async fn create_message_timed(
         &self,
         http: Arc<twilight_http::Client>,
@@ -395,9 +399,11 @@ impl Reply {
     /// # Errors
     ///
     /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
-    /// [`twilight_http::request::channel::message::update_message::UpdateMessage`])
+    /// [`UpdateMessage`])
     ///
     /// Returns [`Error::Http`] if updating the message fails
+    ///
+    /// [`UpdateMessage`]: twilight_http::request::channel::message::update_message::UpdateMessage
     pub async fn update_message(
         &self,
         http: &twilight_http::Client,
@@ -432,9 +438,11 @@ impl Reply {
     /// # Errors
     ///
     /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
-    /// [`twilight_http::request::channel::message::update_message::UpdateMessage`])
+    /// [`UpdateMessage`])
     ///
     /// Returns [`Error::Http`] if updating the message fails
+    ///
+    /// [`UpdateMessage`]: twilight_http::request::channel::message::update_message::UpdateMessage
     pub async fn update_message_timed(
         &self,
         http: Arc<twilight_http::Client>,
@@ -459,7 +467,9 @@ impl Reply {
     /// fails
     ///
     /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
-    /// [`twilight_http::request::channel::message::create_message::CreateMessage`])
+    /// [`CreateMessage`])
+    ///
+    /// [`CreateMessage`]: twilight_http::request::channel::message::create_message::CreateMessage
     pub async fn create_private_message(
         &self,
         http: &twilight_http::Client,
@@ -495,7 +505,9 @@ impl Reply {
     /// or message fails
     ///
     /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
-    /// [`twilight_http::request::channel::message::create_message::CreateMessage`])
+    /// [`CreateMessage`])
+    ///
+    /// [`CreateMessage`]: twilight_http::request::channel::message::create_message::CreateMessage
     pub async fn create_private_message_timed(
         &self,
         http: Arc<twilight_http::Client>,
@@ -522,7 +534,9 @@ impl Reply {
     /// updating the message fails
     ///
     /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
-    /// [`twilight_http::request::channel::message::update_message::UpdateMessage`])
+    /// [`UpdateMessage`])
+    ///
+    /// [`UpdateMessage`]: twilight_http::request::channel::message::update_message::UpdateMessage
     pub async fn update_private_message(
         &self,
         http: &twilight_http::Client,
@@ -555,7 +569,9 @@ impl Reply {
     /// updating the message fails
     ///
     /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
-    /// [`twilight_http::request::channel::message::update_message::UpdateMessage`])
+    /// [`UpdateMessage`])
+    ///
+    /// [`UpdateMessage`]: twilight_http::request::channel::message::update_message::UpdateMessage
     pub async fn update_private_message_timed(
         &self,
         http: Arc<twilight_http::Client>,
@@ -585,9 +601,12 @@ impl Reply {
     /// # Errors
     ///
     /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
-    /// [`twilight_http::request::channel::webhook::execute_webhook::ExecuteWebhook`])
+    /// [`ExecuteWebhook`])
     ///
     /// Returns [`Error::Http`] if executing the webhook fails
+    ///
+    /// [`ExecuteWebhook`]:
+    /// twilight_http::request::channel::webhook::execute_webhook::ExecuteWebhook
     pub async fn execute_webhook(
         &self,
         http: &twilight_http::Client,
@@ -644,11 +663,14 @@ impl Reply {
     /// # Errors
     ///
     /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
-    /// [`twilight_http::request::channel::webhook::execute_webhook::ExecuteWebhook`])
+    /// [`ExecuteWebhook`])
     ///
     /// Returns [`Error::DeserializeBody`] if deserializing the message fails
     ///
     /// Returns [`Error::Http`] if executing the webhook fails
+    ///
+    /// [`ExecuteWebhook`]:
+    /// twilight_http::request::channel::webhook::execute_webhook::ExecuteWebhook
     ///
     /// # Panics
     ///
@@ -683,9 +705,12 @@ impl Reply {
     /// # Errors
     ///
     /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
-    /// [`twilight_http::request::channel::webhook::update_webhook_message::UpdateWebhookMessage`])
+    /// [`UpdateWebhookMessage`])
     ///
     /// Returns [`Error::Http`] if updating the webhook message fails
+    ///
+    /// [`UpdateWebhookMessage`]:
+    /// twilight_http::request::channel::webhook::update_webhook_message::UpdateWebhookMessage
     pub async fn update_webhook_message(
         &self,
         http: &twilight_http::Client,
@@ -724,9 +749,12 @@ impl Reply {
     /// # Errors
     ///
     /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
-    /// [`twilight_http::request::channel::webhook::update_webhook_message::UpdateWebhookMessage`])
+    /// [`UpdateWebhookMessage`])
     ///
     /// Returns [`Error::Http`] if creating the message fails
+    ///
+    /// [`UpdateWebhookMessage`]:
+    /// twilight_http::request::channel::webhook::update_webhook_message::UpdateWebhookMessage
     pub async fn update_webhook_message_timed(
         &mut self,
         http: Arc<twilight_http::Client>,

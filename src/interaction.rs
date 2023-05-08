@@ -230,12 +230,14 @@ impl InteractionHandle<'_> {
     /// # Errors
     ///
     /// Returns [`Error::RequestValidation`] if the reply is invalid (Refer to
-    /// [`twilight_http::request::application::interaction::CreateFollowup`])
+    /// [`CreateFollowup`])
     ///
     /// Returns [`Error::Http`] if creating the followup
     /// response fails
     ///
     /// Returns [`Error::DeserializeBody`] if deserializing the response fails
+    ///
+    /// [`CreateFollowup`]: twilight_http::request::application::interaction::CreateFollowup
     pub async fn reply(&self, reply: Reply) -> Result<Option<Message>, Error> {
         if self.responded() {
             let client = self.bot.interaction_client();
