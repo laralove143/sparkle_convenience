@@ -1,3 +1,5 @@
+use std::{sync::Arc, time::Duration};
+
 use twilight_http::{response::marker::EmptyBody, Response};
 use twilight_model::{
     channel::{
@@ -351,6 +353,41 @@ impl Reply {
             .await?)
     }
 
+    /// Create a message that's deleted after the given duration
+    ///
+    /// This can be an alternative to ephemeral messages where they're not
+    /// available
+    ///
+    /// A message is returned because the response has to be deserialized to
+    /// delete the message anyway
+    ///
+    /// If an error occurs when deleting the message, it is ignored, since
+    /// handling it would require halting the current task
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
+    /// [`twilight_http::request::channel::message::create_message::CreateMessage`])
+    ///
+    /// Returns [`Error::DeserializeBody`] if deserializing the message fails
+    ///
+    /// Returns [`Error::Http`] if creating the message fails
+    pub async fn create_message_timed(
+        &self,
+        http: Arc<twilight_http::Client>,
+        channel_id: Id<ChannelMarker>,
+        delete_after: Duration,
+    ) -> Result<Message, Error> {
+        let message = self
+            .create_message(&http, channel_id)
+            .await?
+            .model()
+            .await?;
+
+        spawn_message_delete(delete_after, http, channel_id, message.id);
+        Ok(message)
+    }
+
     /// Edit a message using this reply
     ///
     /// Overwrites all of the older message
@@ -382,12 +419,44 @@ impl Reply {
             .await?)
     }
 
+    /// Edit a message and delete it after the given duration
+    ///
+    /// Overwrites all of the older message
+    ///
+    /// This can be an alternative to ephemeral messages where they're not
+    /// available
+    ///
+    /// If an error occurs when deleting the message, it is ignored, since
+    /// handling it would require halting the current task
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
+    /// [`twilight_http::request::channel::message::update_message::UpdateMessage`])
+    ///
+    /// Returns [`Error::Http`] if updating the message fails
+    pub async fn update_message_timed(
+        &self,
+        http: Arc<twilight_http::Client>,
+        channel_id: Id<ChannelMarker>,
+        message_id: Id<MessageMarker>,
+        delete_after: Duration,
+    ) -> Result<Response<Message>, Error> {
+        let message_response = self.update_message(&http, channel_id, message_id).await?;
+
+        spawn_message_delete(delete_after, http, channel_id, message_id);
+        Ok(message_response)
+    }
+
     /// Send a DM message to a user using this reply
     ///
     /// # Errors
     ///
     /// Returns [`Error::Http`] if creating or getting the private channel, or
     /// creating the message fails
+    ///
+    /// Returns [`Error::DeserializeBody`] if deserializing the private channel
+    /// fails
     ///
     /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
     /// [`twilight_http::request::channel::message::create_message::CreateMessage`])
@@ -404,6 +473,43 @@ impl Reply {
             .id;
 
         self.create_message(http, channel_id).await
+    }
+
+    /// Send a DM to a user and delete it after the given duration
+    ///
+    /// This can be an alternative to ephemeral messages where they're not
+    /// available
+    ///
+    /// A message is returned because the response has to be deserialized to
+    /// delete the message anyway
+    ///
+    /// If an error occurs when deleting the message, it is ignored, since
+    /// handling it would require halting the current task
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Http`] if creating or getting the private channel, or
+    /// creating the message fails
+    ///
+    /// Returns [`Error::DeserializeBody`] if deserializing the private channel
+    /// or message fails
+    ///
+    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
+    /// [`twilight_http::request::channel::message::create_message::CreateMessage`])
+    pub async fn create_private_message_timed(
+        &self,
+        http: Arc<twilight_http::Client>,
+        user_id: Id<UserMarker>,
+        delete_after: Duration,
+    ) -> Result<Message, Error> {
+        let message = self
+            .create_private_message(&http, user_id)
+            .await?
+            .model()
+            .await?;
+
+        spawn_message_delete(delete_after, http, message.channel_id, message.id);
+        Ok(message)
     }
 
     /// Edit a DM message using this reply
@@ -431,6 +537,43 @@ impl Reply {
             .id;
 
         self.update_message(http, channel_id, message_id).await
+    }
+
+    /// Edit a DM and delete it after the given duration
+    ///
+    /// Overwrites all of the older message
+    ///
+    /// This can be an alternative to ephemeral messages where they're not
+    /// available
+    ///
+    /// If an error occurs when deleting the message, it is ignored, since
+    /// handling it would require halting the current task
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Http`] if creating or getting the private channel, or
+    /// updating the message fails
+    ///
+    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
+    /// [`twilight_http::request::channel::message::update_message::UpdateMessage`])
+    pub async fn update_private_message_timed(
+        &self,
+        http: Arc<twilight_http::Client>,
+        user_id: Id<UserMarker>,
+        message_id: Id<MessageMarker>,
+        delete_after: Duration,
+    ) -> Result<Response<Message>, Error> {
+        let channel_id = http
+            .create_private_channel(user_id)
+            .await?
+            .model()
+            .await?
+            .id;
+
+        let message_response = self.update_message(&http, channel_id, message_id).await?;
+
+        spawn_message_delete(delete_after, http, channel_id, message_id);
+        Ok(message_response)
     }
 
     /// Execute a webhook using this reply
@@ -486,6 +629,53 @@ impl Reply {
         }
     }
 
+    /// Execute a webhook and delete the message after the given duration
+    ///
+    /// This can be an alternative to ephemeral messages where they're not
+    /// available
+    ///
+    /// Sets [`Reply::wait`] and returns a message because the response has
+    /// to be deserialized to delete the message anyway. [`Reply::wait`] will be
+    /// set back to its previous value so this doesn't actually mutate `self`
+    ///
+    /// If an error occurs when deleting the message, it is ignored, since
+    /// handling it would require halting the current task
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
+    /// [`twilight_http::request::channel::webhook::execute_webhook::ExecuteWebhook`])
+    ///
+    /// Returns [`Error::DeserializeBody`] if deserializing the message fails
+    ///
+    /// Returns [`Error::Http`] if executing the webhook fails
+    ///
+    /// # Panics
+    ///
+    /// If the executed webhook doesn't return
+    /// [`ExecuteWebhookResponse::Message`], this should never occur
+    pub async fn execute_webhook_timed(
+        &mut self,
+        http: Arc<twilight_http::Client>,
+        webhook_id: Id<WebhookMarker>,
+        token: String,
+        delete_after: Duration,
+    ) -> Result<Message, Error> {
+        let old_wait = self.wait;
+        self.wait = true;
+        let message = self
+            .execute_webhook(&http, webhook_id, &token)
+            .await?
+            .message()
+            .unwrap()
+            .model()
+            .await?;
+        self.wait = old_wait;
+
+        spawn_webhook_message_delete(delete_after, http, webhook_id, token, message.id);
+        Ok(message)
+    }
+
     /// Update a webhook message using this reply
     ///
     /// Overwrites all of the older message
@@ -520,4 +710,63 @@ impl Reply {
             .attachments(&self.attachments)?
             .await?)
     }
+
+    /// Update a webhook message and delete the message after the given duration
+    ///
+    /// This can be an alternative to ephemeral messages where they're not
+    /// available
+    ///
+    /// Overwrites all of the older message
+    ///
+    /// If an error occurs when deleting the message, it is ignored, since
+    /// handling it would require halting the current task
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
+    /// [`twilight_http::request::channel::webhook::update_webhook_message::UpdateWebhookMessage`])
+    ///
+    /// Returns [`Error::Http`] if creating the message fails
+    pub async fn update_webhook_message_timed(
+        &mut self,
+        http: Arc<twilight_http::Client>,
+        webhook_id: Id<WebhookMarker>,
+        token: String,
+        message_id: Id<MessageMarker>,
+        delete_after: Duration,
+    ) -> Result<Response<Message>, Error> {
+        let message_response = self
+            .update_webhook_message(&http, webhook_id, &token, message_id)
+            .await?;
+
+        spawn_webhook_message_delete(delete_after, http, webhook_id, token, message_id);
+        Ok(message_response)
+    }
+}
+
+fn spawn_message_delete(
+    after: Duration,
+    http: Arc<twilight_http::Client>,
+    channel_id: Id<ChannelMarker>,
+    message_id: Id<MessageMarker>,
+) {
+    tokio::spawn(async move {
+        tokio::time::sleep(after).await;
+        let _delete_res = http.delete_message(channel_id, message_id).await;
+    });
+}
+
+fn spawn_webhook_message_delete(
+    after: Duration,
+    http: Arc<twilight_http::Client>,
+    webhook_id: Id<WebhookMarker>,
+    token: String,
+    message_id: Id<MessageMarker>,
+) {
+    tokio::spawn(async move {
+        tokio::time::sleep(after).await;
+        let _delete_res = http
+            .delete_webhook_message(webhook_id, &token, message_id)
+            .await;
+    });
 }

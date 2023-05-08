@@ -48,7 +48,7 @@
 )]
 #![doc = include_str!("../README.md")]
 
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
 use error::Error;
 use twilight_gateway::{
@@ -77,7 +77,7 @@ pub mod reply;
 #[must_use]
 pub struct Bot {
     /// Twilight's HTTP client
-    pub http: Client,
+    pub http: Arc<Client>,
     /// The application info of the bot
     pub application: Application,
     /// The user info of the bot
@@ -122,7 +122,7 @@ impl Bot {
 
         Ok((
             Self {
-                http,
+                http: Arc::new(http),
                 application,
                 user,
                 logging_webhook: None,
