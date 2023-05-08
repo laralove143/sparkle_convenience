@@ -371,9 +371,9 @@ impl Reply {
     /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
     /// [`CreateMessage`])
     ///
-    /// Returns [`Error::DeserializeBody`] if deserializing the message fails
-    ///
     /// Returns [`Error::Http`] if creating the message fails
+    ///
+    /// Returns [`Error::DeserializeBody`] if deserializing the message fails
     ///
     /// [`CreateMessage`]: twilight_http::request::channel::message::create_message::CreateMessage
     pub async fn create_message_timed(
@@ -460,14 +460,14 @@ impl Reply {
     ///
     /// # Errors
     ///
+    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
+    /// [`CreateMessage`])
+    ///
     /// Returns [`Error::Http`] if creating or getting the private channel, or
     /// creating the message fails
     ///
     /// Returns [`Error::DeserializeBody`] if deserializing the private channel
     /// fails
-    ///
-    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
-    /// [`CreateMessage`])
     ///
     /// [`CreateMessage`]: twilight_http::request::channel::message::create_message::CreateMessage
     pub async fn create_private_message(
@@ -498,14 +498,14 @@ impl Reply {
     ///
     /// # Errors
     ///
+    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
+    /// [`CreateMessage`])
+    ///
     /// Returns [`Error::Http`] if creating or getting the private channel, or
     /// creating the message fails
     ///
     /// Returns [`Error::DeserializeBody`] if deserializing the private channel
     /// or message fails
-    ///
-    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
-    /// [`CreateMessage`])
     ///
     /// [`CreateMessage`]: twilight_http::request::channel::message::create_message::CreateMessage
     pub async fn create_private_message_timed(
@@ -530,11 +530,11 @@ impl Reply {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Http`] if creating or getting the private channel, or
-    /// updating the message fails
-    ///
     /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
     /// [`UpdateMessage`])
+    ///
+    /// Returns [`Error::Http`] if creating or getting the private channel, or
+    /// updating the message fails
     ///
     /// [`UpdateMessage`]: twilight_http::request::channel::message::update_message::UpdateMessage
     pub async fn update_private_message(

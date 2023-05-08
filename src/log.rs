@@ -60,7 +60,7 @@ impl Bot {
     /// Returns [`Error::MessageValidation`] if the bot's username is invalid as
     /// a webhook's username
     ///
-    /// Returns [`Error::Http`] if sending the request fails
+    /// Returns [`Error::Http`] if executing the webhook fails
     pub async fn log(&self, message: &str) -> Result<(), Error> {
         match self.logging_execute_webhook()?.content(message) {
             Ok(exec_webhook) => exec_webhook.await?,
