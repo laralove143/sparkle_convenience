@@ -55,10 +55,10 @@ pub enum DeferBehavior {
     Update,
 }
 
-/// Allows convenient interaction-related methods
+/// Allows convenient methods on interaction handling
 ///
-/// Created from [`Bot::interaction_handle`]
-#[derive(Clone, Debug)]
+/// Created with [`Bot::interaction_handle`]
+#[derive(Debug, Clone)]
 #[allow(clippy::module_name_repetitions)]
 pub struct InteractionHandle<'bot> {
     /// The bot data to make requests with

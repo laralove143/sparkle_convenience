@@ -66,7 +66,8 @@ pub mod error;
 /// Convenient interaction handling
 pub mod interaction;
 mod log;
-mod message;
+/// Convenient message, DM and webhook handling
+pub mod message;
 /// Formatting types into user-readable pretty strings
 pub mod prettify;
 /// The [`reply::Reply`] struct
