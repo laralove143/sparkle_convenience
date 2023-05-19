@@ -1,6 +1,10 @@
 use std::{sync::Arc, time::Duration};
 
-use twilight_http::{response::marker::EmptyBody, Response};
+use serde::de::DeserializeOwned;
+use twilight_http::{
+    response::{marker::EmptyBody, DeserializeBodyError},
+    Response,
+};
 use twilight_model::{
     channel::Message,
     id::{
@@ -17,18 +21,18 @@ use crate::{
 
 /// The response of an executed webhook
 #[derive(Debug)]
-pub enum ExecuteWebhookResponse {
+pub enum ExecuteWebhookResponse<'bot> {
     /// The response returns nothing
-    EmptyBody(Response<EmptyBody>),
+    EmptyBody(ResponseHandle<'bot, EmptyBody, DeleteParamsUnknown>),
     /// The response returns a message
-    Message(Response<Message>),
+    Message(ResponseHandle<'bot, Message, DeleteParamsUnknown>),
 }
 
-impl ExecuteWebhookResponse {
+impl<'bot> ExecuteWebhookResponse<'bot> {
     /// Return the wrapped response if this is a
     /// [`ExecuteWebhookResponse::Message`], `None` otherwise
     #[allow(clippy::missing_const_for_fn)]
-    pub fn message(self) -> Option<Response<Message>> {
+    pub fn message(self) -> Option<ResponseHandle<'bot, Message, DeleteParamsUnknown>> {
         if let Self::Message(response) = self {
             Some(response)
         } else {
@@ -40,19 +44,6 @@ impl ExecuteWebhookResponse {
 /// Allows convenient methods on message, DM and webhook message handling
 ///
 /// Created with [`Bot::reply_handle`]
-///
-/// # Timed Messages
-///
-/// The timed variant of methods make the sent message delete after the given
-/// duration, this can be an alternative to ephemeral messages where they're not
-/// available
-///
-/// `Message` instead of `Response` is sometimes returned because the response
-/// has to be deserialized to delete the message anyway, if this fails, the
-/// method returns [`Error::DeserializeBody`]
-///
-/// If an error occurs when deleting the message, it is ignored, since
-/// handling it would require holding the current task
 #[derive(Debug, Clone, Copy)]
 pub struct ReplyHandle<'bot> {
     bot: &'bot Bot,
@@ -85,7 +76,7 @@ impl ReplyHandle<'_> {
         &self,
         channel_id: Id<ChannelMarker>,
         error: UserError<C>,
-    ) -> Result<Option<Response<Message>>, Error> {
+    ) -> Result<Option<ResponseHandle<'_, Message, DeleteParamsUnknown>>, Error> {
         if let UserError::Ignore = error {
             return Ok(None);
         }
@@ -114,7 +105,7 @@ impl ReplyHandle<'_> {
     pub async fn create_message(
         &self,
         channel_id: Id<ChannelMarker>,
-    ) -> Result<Response<Message>, Error> {
+    ) -> Result<ResponseHandle<'_, Message, DeleteParamsUnknown>, Error> {
         let mut create_message = self.bot.http.create_message(channel_id);
 
         if let Some(message_reference) = self.reply.message_reference {
@@ -127,32 +118,23 @@ impl ReplyHandle<'_> {
             create_message = create_message.nonce(nonce);
         }
 
-        Ok(create_message
-            .content(&self.reply.content)?
-            .embeds(&self.reply.embeds)?
-            .components(&self.reply.components)?
-            .attachments(&self.reply.attachments)?
-            .sticker_ids(&self.reply.sticker_ids)?
-            .flags(self.reply.flags)
-            .tts(self.reply.tts)
-            .fail_if_not_exists(
-                self.reply.missing_message_reference_handle_method
-                    == MissingMessageReferenceHandleMethod::Fail,
-            )
-            .await?)
-    }
-
-    /// See the `Timed Messages` heading of [`ReplyHandle`]
-    #[allow(clippy::missing_errors_doc)]
-    pub async fn create_message_timed(
-        &self,
-        channel_id: Id<ChannelMarker>,
-        delete_after: Duration,
-    ) -> Result<Message, Error> {
-        let message = self.create_message(channel_id).await?.model().await?;
-
-        self.spawn_message_delete(channel_id, message.id, delete_after);
-        Ok(message)
+        Ok(ResponseHandle {
+            bot: self.bot,
+            delete_params: DeleteParamsUnknown {},
+            response: create_message
+                .content(&self.reply.content)?
+                .embeds(&self.reply.embeds)?
+                .components(&self.reply.components)?
+                .attachments(&self.reply.attachments)?
+                .sticker_ids(&self.reply.sticker_ids)?
+                .flags(self.reply.flags)
+                .tts(self.reply.tts)
+                .fail_if_not_exists(
+                    self.reply.missing_message_reference_handle_method
+                        == MissingMessageReferenceHandleMethod::Fail,
+                )
+                .await?,
+        })
     }
 
     /// Edit a message using this reply
@@ -171,34 +153,27 @@ impl ReplyHandle<'_> {
         &self,
         channel_id: Id<ChannelMarker>,
         message_id: Id<MessageMarker>,
-    ) -> Result<Response<Message>, Error> {
+    ) -> Result<ResponseHandle<'_, Message, DeleteParams>, Error> {
         let mut update_message = self.bot.http.update_message(channel_id, message_id);
 
         if let Some(allowed_mentions) = self.reply.allowed_mentions.as_ref() {
             update_message = update_message.allowed_mentions(allowed_mentions.as_ref());
         }
 
-        Ok(update_message
-            .content(Some(&self.reply.content))?
-            .embeds(Some(&self.reply.embeds))?
-            .components(Some(&self.reply.components))?
-            .attachments(&self.reply.attachments)?
-            .flags(self.reply.flags)
-            .await?)
-    }
-
-    /// See the `Timed Messages` heading of [`ReplyHandle`]
-    #[allow(clippy::missing_errors_doc)]
-    pub async fn update_message_timed(
-        &self,
-        channel_id: Id<ChannelMarker>,
-        message_id: Id<MessageMarker>,
-        delete_after: Duration,
-    ) -> Result<Response<Message>, Error> {
-        let message_response = self.update_message(channel_id, message_id).await?;
-
-        self.spawn_message_delete(channel_id, message_id, delete_after);
-        Ok(message_response)
+        Ok(ResponseHandle {
+            bot: self.bot,
+            delete_params: DeleteParams {
+                channel_id,
+                message_id,
+            },
+            response: update_message
+                .content(Some(&self.reply.content))?
+                .embeds(Some(&self.reply.embeds))?
+                .components(Some(&self.reply.components))?
+                .attachments(&self.reply.attachments)?
+                .flags(self.reply.flags)
+                .await?,
+        })
     }
 
     /// Send a DM using this reply
@@ -218,7 +193,7 @@ impl ReplyHandle<'_> {
     pub async fn create_private_message(
         &self,
         user_id: Id<UserMarker>,
-    ) -> Result<Response<Message>, Error> {
+    ) -> Result<ResponseHandle<'_, Message, DeleteParamsUnknown>, Error> {
         let channel_id = self
             .bot
             .http
@@ -229,19 +204,6 @@ impl ReplyHandle<'_> {
             .id;
 
         self.create_message(channel_id).await
-    }
-
-    /// See the `Timed Messages` heading of [`ReplyHandle`]
-    #[allow(clippy::missing_errors_doc)]
-    pub async fn create_private_message_timed(
-        &self,
-        user_id: Id<UserMarker>,
-        delete_after: Duration,
-    ) -> Result<Message, Error> {
-        let message = self.create_private_message(user_id).await?.model().await?;
-
-        self.spawn_message_delete(message.channel_id, message.id, delete_after);
-        Ok(message)
     }
 
     /// Edit a DM using this reply
@@ -261,7 +223,7 @@ impl ReplyHandle<'_> {
         &self,
         user_id: Id<UserMarker>,
         message_id: Id<MessageMarker>,
-    ) -> Result<Response<Message>, Error> {
+    ) -> Result<ResponseHandle<'_, Message, DeleteParams>, Error> {
         let channel_id = self
             .bot
             .http
@@ -272,29 +234,6 @@ impl ReplyHandle<'_> {
             .id;
 
         self.update_message(channel_id, message_id).await
-    }
-
-    /// See the `Timed Messages` heading of [`ReplyHandle`]
-    #[allow(clippy::missing_errors_doc)]
-    pub async fn update_private_message_timed(
-        &self,
-        user_id: Id<UserMarker>,
-        message_id: Id<MessageMarker>,
-        delete_after: Duration,
-    ) -> Result<Response<Message>, Error> {
-        let channel_id = self
-            .bot
-            .http
-            .create_private_channel(user_id)
-            .await?
-            .model()
-            .await?
-            .id;
-
-        let message_response = self.update_message(channel_id, message_id).await?;
-
-        self.spawn_message_delete(channel_id, message_id, delete_after);
-        Ok(message_response)
     }
 
     /// Execute a webhook using this reply
@@ -316,7 +255,7 @@ impl ReplyHandle<'_> {
         &self,
         webhook_id: Id<WebhookMarker>,
         token: &str,
-    ) -> Result<ExecuteWebhookResponse, Error> {
+    ) -> Result<ExecuteWebhookResponse<'_>, Error> {
         let mut execute_webhook = self.bot.http.execute_webhook(webhook_id, token);
 
         if let Some(username) = self.reply.username.as_ref() {
@@ -344,41 +283,18 @@ impl ReplyHandle<'_> {
             .tts(self.reply.tts);
 
         if self.reply.wait {
-            Ok(ExecuteWebhookResponse::Message(
-                execute_webhook.wait().await?,
-            ))
+            Ok(ExecuteWebhookResponse::Message(ResponseHandle {
+                bot: self.bot,
+                delete_params: DeleteParamsUnknown {},
+                response: execute_webhook.wait().await?,
+            }))
         } else {
-            Ok(ExecuteWebhookResponse::EmptyBody(execute_webhook.await?))
+            Ok(ExecuteWebhookResponse::EmptyBody(ResponseHandle {
+                bot: self.bot,
+                delete_params: DeleteParamsUnknown {},
+                response: execute_webhook.await?,
+            }))
         }
-    }
-
-    /// See the `Timed Messages` heading of [`ReplyHandle`]
-    ///
-    /// # Panics
-    ///
-    /// If the executed webhook doesn't return
-    /// [`ExecuteWebhookResponse::Message`], this should never occur
-    #[allow(clippy::missing_errors_doc)]
-    pub async fn execute_webhook_timed(
-        &self,
-        webhook_id: Id<WebhookMarker>,
-        token: String,
-        delete_after: Duration,
-    ) -> Result<Message, Error> {
-        let reply = self.reply.clone().wait();
-        let mut handle = *self;
-        handle.reply = &reply;
-
-        let message = handle
-            .execute_webhook(webhook_id, &token)
-            .await?
-            .message()
-            .unwrap()
-            .model()
-            .await?;
-
-        self.spawn_webhook_message_delete(webhook_id, token, message.id, delete_after);
-        Ok(message)
     }
 
     /// Update a webhook message using this reply
@@ -397,13 +313,13 @@ impl ReplyHandle<'_> {
     pub async fn update_webhook_message(
         &self,
         webhook_id: Id<WebhookMarker>,
-        token: &str,
+        token: String,
         message_id: Id<MessageMarker>,
-    ) -> Result<Response<Message>, Error> {
+    ) -> Result<ResponseHandle<'_, Message, DeleteParamsWebhook>, Error> {
         let mut update_webhook_message = self
             .bot
             .http
-            .update_webhook_message(webhook_id, token, message_id);
+            .update_webhook_message(webhook_id, &token, message_id);
 
         if let Some(thread_id) = self.reply.thread_id {
             update_webhook_message = update_webhook_message.thread_id(thread_id);
@@ -413,57 +329,199 @@ impl ReplyHandle<'_> {
                 update_webhook_message.allowed_mentions(allowed_mentions.as_ref());
         }
 
-        Ok(update_webhook_message
+        let response = update_webhook_message
             .content(Some(&self.reply.content))?
             .embeds(Some(&self.reply.embeds))?
             .components(Some(&self.reply.components))?
             .attachments(&self.reply.attachments)?
-            .await?)
-    }
-
-    /// See the `Timed Messages` heading of [`ReplyHandle`]
-    #[allow(clippy::missing_errors_doc)]
-    pub async fn update_webhook_message_timed(
-        &self,
-        webhook_id: Id<WebhookMarker>,
-        token: String,
-        message_id: Id<MessageMarker>,
-        delete_after: Duration,
-    ) -> Result<Response<Message>, Error> {
-        let message_response = self
-            .update_webhook_message(webhook_id, &token, message_id)
             .await?;
 
-        self.spawn_webhook_message_delete(webhook_id, token, message_id, delete_after);
-        Ok(message_response)
+        Ok(ResponseHandle {
+            bot: self.bot,
+            delete_params: DeleteParamsWebhook {
+                webhook_id,
+                token,
+                message_id,
+            },
+            response,
+        })
     }
+}
 
-    fn spawn_message_delete(
-        &self,
-        channel_id: Id<ChannelMarker>,
-        message_id: Id<MessageMarker>,
-        after: Duration,
-    ) {
+/// Marker type indicating that parameters to delete the message should be
+/// received by deserializing it
+#[derive(Debug, Clone, Copy)]
+pub struct DeleteParamsUnknown {}
+
+/// Parameters for deleting a regular message
+#[derive(Debug, Clone, Copy)]
+pub struct DeleteParams {
+    channel_id: Id<ChannelMarker>,
+    message_id: Id<MessageMarker>,
+}
+
+/// Parameters for deleting a webhook message
+#[derive(Debug, Clone)]
+pub struct DeleteParamsWebhook {
+    webhook_id: Id<WebhookMarker>,
+    token: String,
+    message_id: Id<MessageMarker>,
+}
+
+/// Wrapper over Twilight's [`Response`] providing additional methods
+#[derive(Debug)]
+pub struct ResponseHandle<'bot, T, DeleteParams> {
+    /// The inner response of this handle
+    pub response: Response<T>,
+    bot: &'bot Bot,
+    delete_params: DeleteParams,
+}
+
+impl<T: DeserializeOwned + Unpin + Send, U: Send> ResponseHandle<'_, T, U> {
+    /// Deserialize the response into the type
+    ///
+    /// Akin to [`Response::model`]
+    ///
+    /// This abstracted method is provided to keep this similar to Twilight's
+    /// API
+    ///
+    /// # Errors
+    ///
+    /// Returns the error [`Response::model`] returns
+    pub async fn model(self) -> Result<T, DeserializeBodyError> {
+        self.response.model().await
+    }
+}
+
+impl ResponseHandle<'_, Message, DeleteParamsUnknown> {
+    /// Delete the message after the given duration, this can be an alternative
+    /// to ephemeral messages where they're not available
+    ///
+    /// Resulting type of the [`Response`] is returned because the
+    /// response has to be deserialized to delete the message anyway
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::DeserializeBody`] if deserializing the response fails
+    ///
+    /// If an error occurs when deleting the message, it is ignored, since
+    /// handling it would require holding the current task
+    pub async fn delete_after(self, after: Duration) -> Result<Message, DeserializeBodyError> {
         let http = Arc::clone(&self.bot.http);
+        let message = self.model().await?;
+
+        tokio::spawn(async move {
+            tokio::time::sleep(after).await;
+            http.delete_message(message.channel_id, message.id).await
+        });
+
+        Ok(message)
+    }
+}
+
+impl<'bot, T: Send> ResponseHandle<'bot, T, DeleteParams> {
+    /// Delete the message after the given duration, this can be an alternative
+    /// to ephemeral messages where they're not available
+    ///
+    /// # Errors
+    ///
+    /// If an error occurs when deleting the message, it is ignored, since
+    /// handling it would require holding the current task
+    #[allow(clippy::return_self_not_must_use)]
+    pub fn delete_after(self, after: Duration) -> ResponseHandle<'bot, T, DeleteParams> {
+        let http = Arc::clone(&self.bot.http);
+        let channel_id = self.delete_params.channel_id;
+        let message_id = self.delete_params.message_id;
+
         tokio::spawn(async move {
             tokio::time::sleep(after).await;
             let _delete_res = http.delete_message(channel_id, message_id).await;
         });
-    }
 
-    fn spawn_webhook_message_delete(
-        &self,
-        webhook_id: Id<WebhookMarker>,
-        token: String,
-        message_id: Id<MessageMarker>,
-        after: Duration,
-    ) {
+        self
+    }
+}
+
+impl<'bot, T: Send> ResponseHandle<'bot, T, DeleteParamsWebhook> {
+    /// Delete the webhook message after the given duration, this can be an
+    /// alternative to ephemeral messages where they're not available
+    ///
+    /// # Errors
+    ///
+    /// If an error occurs when deleting the message, it is ignored, since
+    /// handling it would require holding the current task
+    #[allow(clippy::return_self_not_must_use)]
+    pub fn delete_after(self, after: Duration) -> ResponseHandle<'bot, T, DeleteParamsWebhook> {
         let http = Arc::clone(&self.bot.http);
+        let webhook_id = self.delete_params.webhook_id;
+        let token = self.delete_params.token.clone();
+        let message_id = self.delete_params.message_id;
+
         tokio::spawn(async move {
             tokio::time::sleep(after).await;
             let _delete_res = http
                 .delete_webhook_message(webhook_id, &token, message_id)
                 .await;
         });
+
+        self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use twilight_model::{channel::Message, id::Id};
+
+    use crate::{
+        error::Error,
+        message::{DeleteParams, DeleteParamsWebhook, ReplyHandle, ResponseHandle},
+    };
+
+    async fn _impl_delete_after(reply_handle: ReplyHandle<'_>) -> Result<(), Error> {
+        let duration = Duration::default();
+        let channel_id = Id::new(1);
+        let webhook_id = Id::new(1);
+        let message_id = Id::new(1);
+        let user_id = Id::new(1);
+
+        let _create_message: Message = reply_handle
+            .create_message(channel_id)
+            .await?
+            .delete_after(duration)
+            .await?;
+
+        let _update_message: ResponseHandle<'_, Message, DeleteParams> = reply_handle
+            .update_message(channel_id, message_id)
+            .await?
+            .delete_after(duration);
+
+        let _create_private_message: Message = reply_handle
+            .create_private_message(user_id)
+            .await?
+            .delete_after(duration)
+            .await?;
+
+        let _update_private_message: ResponseHandle<'_, Message, DeleteParams> = reply_handle
+            .update_private_message(user_id, message_id)
+            .await?
+            .delete_after(duration);
+
+        let _execute_webhook: Message = reply_handle
+            .execute_webhook(webhook_id, "")
+            .await?
+            .message()
+            .unwrap()
+            .delete_after(duration)
+            .await?;
+
+        let _update_webhook_message: ResponseHandle<'_, Message, DeleteParamsWebhook> =
+            reply_handle
+                .update_webhook_message(webhook_id, String::new(), message_id)
+                .await?
+                .delete_after(duration);
+
+        Ok(())
     }
 }
