@@ -419,7 +419,7 @@ impl ResponseHandle<'_, Message, DeleteParamsUnknown> {
     }
 }
 
-impl<'bot, T: Send> ResponseHandle<'bot, T, DeleteParams> {
+impl<'bot, T> ResponseHandle<'bot, T, DeleteParams> {
     /// Delete the message after the given duration, this can be an alternative
     /// to ephemeral messages where they're not available
     ///
@@ -442,7 +442,7 @@ impl<'bot, T: Send> ResponseHandle<'bot, T, DeleteParams> {
     }
 }
 
-impl<'bot, T: Send> ResponseHandle<'bot, T, DeleteParamsWebhook> {
+impl<'bot, T> ResponseHandle<'bot, T, DeleteParamsWebhook> {
     /// Delete the webhook message after the given duration, this can be an
     /// alternative to ephemeral messages where they're not available
     ///
