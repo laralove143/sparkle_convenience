@@ -1,3 +1,5 @@
+//! Extracting data from interactions
+
 use twilight_model::{
     application::interaction::{
         application_command::CommandData, message_component::MessageComponentInteractionData,

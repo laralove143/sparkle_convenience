@@ -1,3 +1,5 @@
+//! Convenient message, DM and webhook handling
+
 use serde::de::DeserializeOwned;
 use twilight_http::{
     response::{marker::EmptyBody, DeserializeBodyError},
@@ -17,13 +19,6 @@ use crate::{
     Bot,
 };
 
-/// Methods to delete a sent message after the given duration as an
-/// alternative to ephemeral messages
-///
-/// # Warnings
-///
-/// If an error occurs when deleting the message, it is ignored, since
-/// handling it would require holding the current task
 mod delete_after;
 
 /// The response of an executed webhook

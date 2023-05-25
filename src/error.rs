@@ -1,3 +1,5 @@
+//! User error types and converting options to results
+
 use std::{
     any::type_name,
     fmt::{Debug, Display, Formatter},

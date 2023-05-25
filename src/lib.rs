@@ -61,16 +61,11 @@ use twilight_model::{
     user::CurrentUser,
 };
 
-/// User error types and converting options to results
 pub mod error;
-/// Convenient interaction handling
 pub mod interaction;
 mod log;
-/// Convenient message, DM and webhook handling
 pub mod message;
-/// Formatting types into user-readable pretty strings
 pub mod prettify;
-/// The [`reply::Reply`] struct
 pub mod reply;
 
 /// All data required to make a bot run

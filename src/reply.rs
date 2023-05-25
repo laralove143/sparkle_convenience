@@ -1,3 +1,6 @@
+//! The [`Reply`] struct combining data to use when creating a message,
+//! interaction response or executing a webhook
+
 use twilight_model::{
     channel::message::{AllowedMentions, Component, Embed, MessageFlags},
     http::{attachment::Attachment, interaction::InteractionResponseData},
@@ -16,8 +19,8 @@ pub enum MissingMessageReferenceHandleMethod {
     Ignore,
 }
 
-/// The message to reply with, combining similar data in messages, interactions
-/// and webhooks
+/// The message to reply with combining data to use when creating a message,
+/// interaction response or executing a webhook
 ///
 /// Used with [`InteractionHandle::reply`] in interactions and [`ReplyHandle`]
 /// in messages, DMs and webhooks

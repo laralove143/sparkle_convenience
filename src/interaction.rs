@@ -1,3 +1,5 @@
+//! Convenient interaction handling
+
 use std::{
     fmt::Debug,
     sync::{
@@ -33,7 +35,6 @@ use crate::{
     Bot,
 };
 
-/// Extracting data from interactions
 pub mod extract;
 
 /// Defines whether a defer request should be ephemeral
