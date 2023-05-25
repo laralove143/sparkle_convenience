@@ -14,24 +14,24 @@ use crate::message::ResponseHandle;
 /// Marker type indicating that parameters to delete the message should be
 /// received by deserializing it
 #[derive(Debug, Clone, Copy)]
-pub struct DeleteParamsUnknown {}
+pub struct ParamsUnknown {}
 
 /// Parameters for deleting a regular message
 #[derive(Debug, Clone, Copy)]
-pub struct DeleteParams {
+pub struct ParamsMessage {
     pub(crate) channel_id: Id<ChannelMarker>,
     pub(crate) message_id: Id<MessageMarker>,
 }
 
 /// Parameters for deleting a webhook message
 #[derive(Debug, Clone)]
-pub struct DeleteParamsWebhook {
+pub struct ParamsWebhook {
     pub(crate) webhook_id: Id<WebhookMarker>,
     pub(crate) token: String,
     pub(crate) message_id: Id<MessageMarker>,
 }
 
-impl ResponseHandle<'_, Message, DeleteParamsUnknown> {
+impl ResponseHandle<'_, Message, ParamsUnknown> {
     /// Delete the message after the given duration
     ///
     /// Resulting type of the [`Response`] is returned because the
@@ -53,10 +53,10 @@ impl ResponseHandle<'_, Message, DeleteParamsUnknown> {
     }
 }
 
-impl<'bot, T> ResponseHandle<'bot, T, DeleteParams> {
+impl<'bot, T> ResponseHandle<'bot, T, ParamsMessage> {
     /// Delete the message after the given duration
     #[allow(clippy::return_self_not_must_use)]
-    pub fn delete_after(self, after: Duration) -> ResponseHandle<'bot, T, DeleteParams> {
+    pub fn delete_after(self, after: Duration) -> ResponseHandle<'bot, T, ParamsMessage> {
         let http = Arc::clone(&self.bot.http);
         let delete_params = self.delete_params;
 
@@ -71,10 +71,10 @@ impl<'bot, T> ResponseHandle<'bot, T, DeleteParams> {
     }
 }
 
-impl<'bot, T> ResponseHandle<'bot, T, DeleteParamsWebhook> {
+impl<'bot, T> ResponseHandle<'bot, T, ParamsWebhook> {
     /// Delete the webhook message after the given duration
     #[allow(clippy::return_self_not_must_use)]
-    pub fn delete_after(self, after: Duration) -> ResponseHandle<'bot, T, DeleteParamsWebhook> {
+    pub fn delete_after(self, after: Duration) -> ResponseHandle<'bot, T, ParamsWebhook> {
         let http = Arc::clone(&self.bot.http);
         let delete_params = self.delete_params.clone();
 
@@ -102,7 +102,7 @@ mod tests {
     use crate::{
         error::Error,
         message::{
-            delete_after::{DeleteParams, DeleteParamsWebhook},
+            delete_after::{ParamsMessage, ParamsWebhook},
             ReplyHandle, ResponseHandle,
         },
     };
@@ -120,7 +120,7 @@ mod tests {
             .delete_after(duration)
             .await?;
 
-        let _update_message: ResponseHandle<'_, Message, DeleteParams> = reply_handle
+        let _update_message: ResponseHandle<'_, Message, ParamsMessage> = reply_handle
             .update_message(channel_id, message_id)
             .await?
             .delete_after(duration);
@@ -131,7 +131,7 @@ mod tests {
             .delete_after(duration)
             .await?;
 
-        let _update_private_message: ResponseHandle<'_, Message, DeleteParams> = reply_handle
+        let _update_private_message: ResponseHandle<'_, Message, ParamsMessage> = reply_handle
             .update_private_message(user_id, message_id)
             .await?
             .delete_after(duration);
@@ -144,11 +144,10 @@ mod tests {
             .delete_after(duration)
             .await?;
 
-        let _update_webhook_message: ResponseHandle<'_, Message, DeleteParamsWebhook> =
-            reply_handle
-                .update_webhook_message(webhook_id, String::new(), message_id)
-                .await?
-                .delete_after(duration);
+        let _update_webhook_message: ResponseHandle<'_, Message, ParamsWebhook> = reply_handle
+            .update_webhook_message(webhook_id, String::new(), message_id)
+            .await?
+            .delete_after(duration);
 
         Ok(())
     }
