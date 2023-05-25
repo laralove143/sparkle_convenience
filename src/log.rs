@@ -66,6 +66,10 @@ impl Bot {
             Ok(exec_webhook) => exec_webhook.await?,
             Err(_) => {
                 self.logging_execute_webhook()?
+                    .content(&format!(
+                        "{}...",
+                        message.chars().take(100).collect::<String>(),
+                    ))?
                     .attachments(&[Attachment::from_bytes(
                         "log_message.txt".to_owned(),
                         message.to_owned().into_bytes(),
