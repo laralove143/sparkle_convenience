@@ -2,6 +2,7 @@
 
 use serde::de::DeserializeOwned;
 use twilight_http::{
+    request::channel::webhook::ExecuteWebhook,
     response::{marker::EmptyBody, DeserializeBodyError},
     Response,
 };
@@ -12,6 +13,7 @@ use twilight_model::{
         Id,
     },
 };
+use twilight_validate::message::MessageValidationError;
 
 use crate::{
     error::{Error, UserError},
@@ -20,28 +22,6 @@ use crate::{
 };
 
 mod delete_after;
-
-/// The response of an executed webhook
-#[derive(Debug)]
-pub enum ExecuteWebhookResponse<'bot> {
-    /// The response returns nothing
-    EmptyBody(ResponseHandle<'bot, EmptyBody, delete_after::ParamsUnknown>),
-    /// The response returns a message
-    Message(ResponseHandle<'bot, Message, delete_after::ParamsUnknown>),
-}
-
-impl<'bot> ExecuteWebhookResponse<'bot> {
-    /// Return the wrapped response if this is a
-    /// [`ExecuteWebhookResponse::Message`], `None` otherwise
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn message(self) -> Option<ResponseHandle<'bot, Message, delete_after::ParamsUnknown>> {
-        if let Self::Message(response) = self {
-            Some(response)
-        } else {
-            None
-        }
-    }
-}
 
 /// Allows convenient methods on message, DM and webhook message handling
 ///
@@ -240,9 +220,26 @@ impl ReplyHandle<'_> {
 
     /// Execute a webhook using this reply
     ///
-    /// If [`Reply::wait`] was called, returns
-    /// [`ExecuteWebhookResponse::Message`], otherwise returns
-    /// [`ExecuteWebhookResponse::EmptyBody`]
+    /// # Errors
+    ///
+    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
+    /// [`ExecuteWebhook`])
+    ///
+    /// Returns [`Error::Http`] if executing the webhook fails
+    pub async fn execute_webhook(
+        &self,
+        webhook_id: Id<WebhookMarker>,
+        token: &str,
+    ) -> Result<ResponseHandle<'_, EmptyBody, delete_after::ParamsUnknown>, Error> {
+        Ok(ResponseHandle {
+            bot: self.bot,
+            delete_params: delete_after::ParamsUnknown {},
+            response: self.execute_webhook_request(webhook_id, token)?.await?,
+        })
+    }
+
+    /// Execute a webhook using this reply and wait for the message to be
+    /// received in the response
     ///
     /// # Errors
     ///
@@ -250,53 +247,19 @@ impl ReplyHandle<'_> {
     /// [`ExecuteWebhook`])
     ///
     /// Returns [`Error::Http`] if executing the webhook fails
-    ///
-    /// [`ExecuteWebhook`]:
-    /// twilight_http::request::channel::webhook::execute_webhook::ExecuteWebhook
-    pub async fn execute_webhook(
+    pub async fn execute_webhook_and_wait(
         &self,
         webhook_id: Id<WebhookMarker>,
         token: &str,
-    ) -> Result<ExecuteWebhookResponse<'_>, Error> {
-        let mut execute_webhook = self.bot.http.execute_webhook(webhook_id, token);
-
-        if let Some(username) = self.reply.username.as_ref() {
-            execute_webhook = execute_webhook.username(username)?;
-        }
-        if let Some(avatar_url) = self.reply.avatar_url.as_ref() {
-            execute_webhook = execute_webhook.avatar_url(avatar_url);
-        }
-        if let Some(thread_id) = self.reply.thread_id {
-            execute_webhook = execute_webhook.thread_id(thread_id);
-        }
-        if let Some(thread_name) = self.reply.thread_name.as_ref() {
-            execute_webhook = execute_webhook.thread_name(thread_name);
-        }
-        if let Some(allowed_mentions) = self.reply.allowed_mentions.as_ref() {
-            execute_webhook = execute_webhook.allowed_mentions(allowed_mentions.as_ref());
-        }
-
-        execute_webhook = execute_webhook
-            .content(&self.reply.content)?
-            .embeds(&self.reply.embeds)?
-            .components(&self.reply.components)?
-            .attachments(&self.reply.attachments)?
-            .flags(self.reply.flags)
-            .tts(self.reply.tts);
-
-        if self.reply.wait {
-            Ok(ExecuteWebhookResponse::Message(ResponseHandle {
-                bot: self.bot,
-                delete_params: delete_after::ParamsUnknown {},
-                response: execute_webhook.wait().await?,
-            }))
-        } else {
-            Ok(ExecuteWebhookResponse::EmptyBody(ResponseHandle {
-                bot: self.bot,
-                delete_params: delete_after::ParamsUnknown {},
-                response: execute_webhook.await?,
-            }))
-        }
+    ) -> Result<ResponseHandle<'_, Message, delete_after::ParamsUnknown>, Error> {
+        Ok(ResponseHandle {
+            bot: self.bot,
+            delete_params: delete_after::ParamsUnknown {},
+            response: self
+                .execute_webhook_request(webhook_id, token)?
+                .wait()
+                .await?,
+        })
     }
 
     /// Update a webhook message using this reply
@@ -347,6 +310,38 @@ impl ReplyHandle<'_> {
             },
             response,
         })
+    }
+
+    fn execute_webhook_request<'handle>(
+        &'handle self,
+        webhook_id: Id<WebhookMarker>,
+        token: &'handle str,
+    ) -> Result<ExecuteWebhook<'_>, MessageValidationError> {
+        let mut execute_webhook = self.bot.http.execute_webhook(webhook_id, token);
+
+        if let Some(username) = self.reply.username.as_ref() {
+            execute_webhook = execute_webhook.username(username)?;
+        }
+        if let Some(avatar_url) = self.reply.avatar_url.as_ref() {
+            execute_webhook = execute_webhook.avatar_url(avatar_url);
+        }
+        if let Some(thread_id) = self.reply.thread_id {
+            execute_webhook = execute_webhook.thread_id(thread_id);
+        }
+        if let Some(thread_name) = self.reply.thread_name.as_ref() {
+            execute_webhook = execute_webhook.thread_name(thread_name);
+        }
+        if let Some(allowed_mentions) = self.reply.allowed_mentions.as_ref() {
+            execute_webhook = execute_webhook.allowed_mentions(allowed_mentions.as_ref());
+        }
+
+        Ok(execute_webhook
+            .content(&self.reply.content)?
+            .embeds(&self.reply.embeds)?
+            .components(&self.reply.components)?
+            .attachments(&self.reply.attachments)?
+            .flags(self.reply.flags)
+            .tts(self.reply.tts))
     }
 }
 

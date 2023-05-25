@@ -154,11 +154,9 @@ mod tests {
             .await?
             .delete_after(duration);
 
-        let _execute_webhook: Message = reply_handle
-            .execute_webhook(webhook_id, "")
+        let _execute_webhook_and_wait: Message = reply_handle
+            .execute_webhook_and_wait(webhook_id, "")
             .await?
-            .message()
-            .unwrap()
             .delete_after(duration)
             .await?;
 
