@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use twilight_http::response::DeserializeBodyError;
+use twilight_http::{response::DeserializeBodyError, Client};
 use twilight_model::{
     channel::Message,
     id::{
@@ -44,10 +44,7 @@ impl ResponseHandle<'_, Message, ParamsUnknown> {
         let http = Arc::clone(&self.bot.http);
         let message = self.model().await?;
 
-        tokio::spawn(async move {
-            tokio::time::sleep(after).await;
-            http.delete_message(message.channel_id, message.id).await
-        });
+        spawn_delete(http, Params::Message(message.channel_id, message.id), after);
 
         Ok(message)
     }
@@ -57,15 +54,11 @@ impl<'bot, T> ResponseHandle<'bot, T, ParamsMessage> {
     /// Delete the message after the given duration
     #[allow(clippy::return_self_not_must_use)]
     pub fn delete_after(self, after: Duration) -> ResponseHandle<'bot, T, ParamsMessage> {
-        let http = Arc::clone(&self.bot.http);
-        let delete_params = self.delete_params;
-
-        tokio::spawn(async move {
-            tokio::time::sleep(after).await;
-            let _delete_res = http
-                .delete_message(delete_params.channel_id, delete_params.message_id)
-                .await;
-        });
+        spawn_delete(
+            Arc::clone(&self.bot.http),
+            Params::Message(self.delete_params.channel_id, self.delete_params.message_id),
+            after,
+        );
 
         self
     }
@@ -75,22 +68,39 @@ impl<'bot, T> ResponseHandle<'bot, T, ParamsWebhook> {
     /// Delete the webhook message after the given duration
     #[allow(clippy::return_self_not_must_use)]
     pub fn delete_after(self, after: Duration) -> ResponseHandle<'bot, T, ParamsWebhook> {
-        let http = Arc::clone(&self.bot.http);
-        let delete_params = self.delete_params.clone();
-
-        tokio::spawn(async move {
-            tokio::time::sleep(after).await;
-            let _delete_res = http
-                .delete_webhook_message(
-                    delete_params.webhook_id,
-                    &delete_params.token,
-                    delete_params.message_id,
-                )
-                .await;
-        });
+        spawn_delete(
+            Arc::clone(&self.bot.http),
+            Params::Webhook(
+                self.delete_params.webhook_id,
+                self.delete_params.token.clone(),
+                self.delete_params.message_id,
+            ),
+            after,
+        );
 
         self
     }
+}
+
+#[derive(Debug, Clone)]
+enum Params {
+    Message(Id<ChannelMarker>, Id<MessageMarker>),
+    Webhook(Id<WebhookMarker>, String, Id<MessageMarker>),
+}
+
+fn spawn_delete(http: Arc<Client>, params: Params, delete_after: Duration) {
+    tokio::spawn(async move {
+        tokio::time::sleep(delete_after).await;
+        let _delete_res = match params {
+            Params::Message(channel_id, message_id) => {
+                http.delete_message(channel_id, message_id).await
+            }
+            Params::Webhook(webhook_id, token, message_id) => {
+                http.delete_webhook_message(webhook_id, &token, message_id)
+                    .await
+            }
+        };
+    });
 }
 
 #[cfg(test)]
