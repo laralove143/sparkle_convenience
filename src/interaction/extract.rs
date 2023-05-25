@@ -1,11 +1,8 @@
 //! Extracting data from interactions
 
-use twilight_model::{
-    application::interaction::{
-        application_command::CommandData, message_component::MessageComponentInteractionData,
-        modal::ModalInteractionData, Interaction, InteractionData,
-    },
-    user::User,
+use twilight_model::application::interaction::{
+    application_command::CommandData, message_component::MessageComponentInteractionData,
+    modal::ModalInteractionData, Interaction, InteractionData,
 };
 
 /// Utility methods for [`Interaction`]
@@ -17,11 +14,6 @@ pub trait InteractionExt {
     ///
     /// [`InteractionType::Ping`]: twilight_model::application::interaction::InteractionType::Ping
     fn name(&self) -> Option<&str>;
-
-    /// Return the user of the interaction, whether it's in DMs or not
-    ///
-    /// Should never return `None`
-    fn user(&self) -> Option<&User>;
 }
 
 impl InteractionExt for Interaction {
@@ -31,14 +23,6 @@ impl InteractionExt for Interaction {
             InteractionData::MessageComponent(data) => Some(&data.custom_id),
             InteractionData::ModalSubmit(data) => Some(&data.custom_id),
             _ => None,
-        }
-    }
-
-    fn user(&self) -> Option<&User> {
-        if let Some(user) = &self.user {
-            Some(user)
-        } else {
-            Some(self.member.as_ref()?.user.as_ref()?)
         }
     }
 }
