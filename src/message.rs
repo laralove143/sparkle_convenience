@@ -353,6 +353,10 @@ impl ReplyHandle<'_> {
 /// `delete_after` methods are provided to delete a sent message after the given
 /// duration as an alternative to ephemeral messages
 ///
+/// `DeleteParams` type parameter is used in these methods, it's a type
+/// parameter so that the method can be re-defined based on it and return
+/// different types known at compile time
+///
 /// ## Warnings
 ///
 /// If an error occurs when deleting the message, it's ignored since
