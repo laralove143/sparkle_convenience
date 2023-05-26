@@ -17,6 +17,7 @@ use twilight_validate::message::MessageValidationError;
 
 use crate::{
     error::{Error, UserError},
+    message::delete_after::{DeleteParamsMessage, DeleteParamsUnknown, DeleteParamsWebhook},
     reply::{MissingMessageReferenceHandleMethod, Reply},
     Bot,
 };
@@ -58,7 +59,7 @@ impl ReplyHandle<'_> {
         &self,
         channel_id: Id<ChannelMarker>,
         error: UserError<C>,
-    ) -> Result<Option<ResponseHandle<'_, Message, delete_after::ParamsUnknown>>, Error> {
+    ) -> Result<Option<ResponseHandle<'_, Message, DeleteParamsUnknown>>, Error> {
         if matches!(error, UserError::Ignore) {
             return Ok(None);
         }
@@ -87,7 +88,7 @@ impl ReplyHandle<'_> {
     pub async fn create_message(
         &self,
         channel_id: Id<ChannelMarker>,
-    ) -> Result<ResponseHandle<'_, Message, delete_after::ParamsUnknown>, Error> {
+    ) -> Result<ResponseHandle<'_, Message, DeleteParamsUnknown>, Error> {
         let mut create_message = self.bot.http.create_message(channel_id);
 
         if let Some(message_reference) = self.reply.message_reference {
@@ -102,7 +103,7 @@ impl ReplyHandle<'_> {
 
         Ok(ResponseHandle {
             bot: self.bot,
-            delete_params: delete_after::ParamsUnknown {},
+            delete_params: DeleteParamsUnknown {},
             response: create_message
                 .content(&self.reply.content)?
                 .embeds(&self.reply.embeds)?
@@ -135,7 +136,7 @@ impl ReplyHandle<'_> {
         &self,
         channel_id: Id<ChannelMarker>,
         message_id: Id<MessageMarker>,
-    ) -> Result<ResponseHandle<'_, Message, delete_after::ParamsMessage>, Error> {
+    ) -> Result<ResponseHandle<'_, Message, DeleteParamsMessage>, Error> {
         let mut update_message = self.bot.http.update_message(channel_id, message_id);
 
         if let Some(allowed_mentions) = self.reply.allowed_mentions.as_ref() {
@@ -144,7 +145,7 @@ impl ReplyHandle<'_> {
 
         Ok(ResponseHandle {
             bot: self.bot,
-            delete_params: delete_after::ParamsMessage {
+            delete_params: DeleteParamsMessage {
                 channel_id,
                 message_id,
             },
@@ -175,7 +176,7 @@ impl ReplyHandle<'_> {
     pub async fn create_private_message(
         &self,
         user_id: Id<UserMarker>,
-    ) -> Result<ResponseHandle<'_, Message, delete_after::ParamsUnknown>, Error> {
+    ) -> Result<ResponseHandle<'_, Message, DeleteParamsUnknown>, Error> {
         let channel_id = self
             .bot
             .http
@@ -205,7 +206,7 @@ impl ReplyHandle<'_> {
         &self,
         user_id: Id<UserMarker>,
         message_id: Id<MessageMarker>,
-    ) -> Result<ResponseHandle<'_, Message, delete_after::ParamsMessage>, Error> {
+    ) -> Result<ResponseHandle<'_, Message, DeleteParamsMessage>, Error> {
         let channel_id = self
             .bot
             .http
@@ -230,10 +231,10 @@ impl ReplyHandle<'_> {
         &self,
         webhook_id: Id<WebhookMarker>,
         token: &str,
-    ) -> Result<ResponseHandle<'_, EmptyBody, delete_after::ParamsUnknown>, Error> {
+    ) -> Result<ResponseHandle<'_, EmptyBody, DeleteParamsUnknown>, Error> {
         Ok(ResponseHandle {
             bot: self.bot,
-            delete_params: delete_after::ParamsUnknown {},
+            delete_params: DeleteParamsUnknown {},
             response: self.execute_webhook_request(webhook_id, token)?.await?,
         })
     }
@@ -251,10 +252,10 @@ impl ReplyHandle<'_> {
         &self,
         webhook_id: Id<WebhookMarker>,
         token: &str,
-    ) -> Result<ResponseHandle<'_, Message, delete_after::ParamsUnknown>, Error> {
+    ) -> Result<ResponseHandle<'_, Message, DeleteParamsUnknown>, Error> {
         Ok(ResponseHandle {
             bot: self.bot,
-            delete_params: delete_after::ParamsUnknown {},
+            delete_params: DeleteParamsUnknown {},
             response: self
                 .execute_webhook_request(webhook_id, token)?
                 .wait()
@@ -280,7 +281,7 @@ impl ReplyHandle<'_> {
         webhook_id: Id<WebhookMarker>,
         token: String,
         message_id: Id<MessageMarker>,
-    ) -> Result<ResponseHandle<'_, Message, delete_after::ParamsWebhook>, Error> {
+    ) -> Result<ResponseHandle<'_, Message, DeleteParamsWebhook>, Error> {
         let mut update_webhook_message = self
             .bot
             .http
@@ -303,7 +304,7 @@ impl ReplyHandle<'_> {
 
         Ok(ResponseHandle {
             bot: self.bot,
-            delete_params: delete_after::ParamsWebhook {
+            delete_params: DeleteParamsWebhook {
                 webhook_id,
                 token,
                 message_id,
