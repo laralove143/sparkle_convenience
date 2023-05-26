@@ -32,6 +32,7 @@ relying on callbacks and mostly following Twilight patterns while making your li
 ## 😋 A TASTE OF CONVENIENCE
 
 <!-- @formatter:off -->
+
 ```rust,ignore
 let bot = Bot::new(
     "forgot to leak my token".to_owned(),
@@ -65,6 +66,10 @@ if interaction.name().ok()? == "pay_respects" {
 }
 ```
 <!-- @formatter:on -->
+
+# 🚚 CARGO FEATURES
+
+- `anyhow`: Pulls the `anyhow` crate to provide convenience features around it in the `error` module
 
 ## ✉️ CONTACT
 

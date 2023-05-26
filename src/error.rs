@@ -1,17 +1,14 @@
 //! User error types and converting options to results
 
-use std::{
-    any::type_name,
-    fmt::{Debug, Display, Formatter},
-};
+use std::fmt::{Debug, Display, Formatter};
 
-use anyhow::anyhow;
 use twilight_model::guild::Permissions;
 
 mod http_error;
 
 /// Trait implemented on types that can be converted into an [`anyhow::Error`]
 #[allow(clippy::module_name_repetitions)]
+#[cfg(feature = "anyhow")]
 pub trait IntoError<T>: Sized {
     /// Conditionally wrap this type in [`anyhow::Error`]
     ///
@@ -21,9 +18,10 @@ pub trait IntoError<T>: Sized {
     fn ok(self) -> Result<T, anyhow::Error>;
 }
 
+#[cfg(feature = "anyhow")]
 impl<T> IntoError<T> for Option<T> {
     fn ok(self) -> Result<T, anyhow::Error> {
-        self.ok_or_else(|| anyhow!("{} is None", type_name::<Self>()))
+        self.ok_or_else(|| anyhow::anyhow!("{} is None", std::any::type_name::<Self>()))
     }
 }
 
@@ -105,9 +103,10 @@ impl<C: Clone + Display + Debug + Send + Sync + 'static> UserError<C> {
     ///
     /// # Warning
     ///
-    /// - It's recommended to use the same type for `C` all around to avoid
-    ///   unexpected return values
+    /// It's recommended to use the same type for `C` all around to avoid
+    /// unexpected return values
     #[must_use]
+    #[cfg(feature = "anyhow")]
     pub fn from_anyhow_err(err: &anyhow::Error) -> Self {
         if let Some(user_err) = err.downcast_ref::<Self>() {
             return user_err.clone();
@@ -173,23 +172,24 @@ impl Display for NoCustomError {
 
 #[cfg(test)]
 mod tests {
-    use std::fmt::{Display, Formatter};
-
     use crate::error::{NoCustomError, UserError};
 
-    #[derive(Debug, Clone, Copy)]
-    enum CustomError {
-        TooSlay,
-    }
-
-    impl Display for CustomError {
-        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            f.write_str("slayed too hard")
-        }
-    }
-
     #[test]
+    #[cfg(feature = "anyhow")]
     fn user_err_downcast() {
+        use std::fmt::{Display, Formatter};
+
+        #[derive(Debug, Clone, Copy)]
+        enum CustomError {
+            TooSlay,
+        }
+
+        impl Display for CustomError {
+            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+                f.write_str("slayed too hard")
+            }
+        }
+
         let missing_perms_from_anyhow = UserError::<CustomError>::from_anyhow_err(
             &anyhow::anyhow!(UserError::MissingPermissions::<CustomError>(None)),
         );
