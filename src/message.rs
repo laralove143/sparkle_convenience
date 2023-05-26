@@ -59,7 +59,7 @@ impl ReplyHandle<'_> {
         channel_id: Id<ChannelMarker>,
         error: UserError<C>,
     ) -> Result<Option<ResponseHandle<'_, Message, delete_after::ParamsUnknown>>, Error> {
-        if let UserError::Ignore = error {
+        if matches!(error, UserError::Ignore) {
             return Ok(None);
         }
 

@@ -148,7 +148,7 @@ impl InteractionHandle<'_> {
         reply: Reply,
         error: UserError<C>,
     ) -> Result<Option<Message>, Error> {
-        if let UserError::Ignore = error {
+        if matches!(error, UserError::Ignore) {
             return Ok(None);
         }
 
@@ -212,12 +212,13 @@ impl InteractionHandle<'_> {
     /// reply might take longer, consider using [`InteractionHandle::defer`] or
     /// [`InteractionHandle::defer_component`] before this method
     ///
-    /// - If this is the first response sent, returns `None`
-    /// - Unless [`Reply::update_last`] was called, returns `Some`
-    /// - If [`Reply::update_last`] was called and this is the first response,
-    ///   returns `Some`
-    /// - If [`Reply::update_last`] was called but this isn't the first
-    ///   response, returns `None`
+    /// - If this is the first response, returns `None`
+    /// - If this is not the first response and [`Reply::update_last`] was not
+    ///   called, returns `Some`
+    /// - If a message response was sent and [`Reply::update_last`] was called,
+    ///   returns `None`
+    /// - If a message response was not sent and [`Reply::update_last`] was
+    ///   called, returns `Some`
     ///
     /// # Updating Last Response
     ///
@@ -233,8 +234,7 @@ impl InteractionHandle<'_> {
     /// Returns [`Error::RequestValidation`] if the reply is invalid (Refer to
     /// [`CreateFollowup`])
     ///
-    /// Returns [`Error::Http`] if creating the followup
-    /// response fails
+    /// Returns [`Error::Http`] if creating the followup response fails
     ///
     /// Returns [`Error::DeserializeBody`] if deserializing the response fails
     ///
