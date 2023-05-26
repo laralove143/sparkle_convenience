@@ -347,6 +347,16 @@ impl ReplyHandle<'_> {
 }
 
 /// Wrapper over Twilight's [`Response`] providing additional methods
+///
+/// # Delete After
+///
+/// `delete_after` methods are provided to delete a sent message after the given
+/// duration as an alternative to ephemeral messages
+///
+/// ## Warnings
+///
+/// If an error occurs when deleting the message, it's ignored since
+/// handling it would require holding the current task
 #[derive(Debug)]
 pub struct ResponseHandle<'bot, T, DeleteParams> {
     /// The inner response of this handle

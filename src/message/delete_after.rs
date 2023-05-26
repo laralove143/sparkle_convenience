@@ -1,11 +1,3 @@
-//! Methods to delete a sent message after the given duration as an
-//! alternative to ephemeral messages
-//!
-//! # Warnings
-//!
-//! If an error occurs when deleting the message, it is ignored, since
-//! handling it would require holding the current task
-
 use std::{sync::Arc, time::Duration};
 
 use twilight_http::{response::DeserializeBodyError, Client};
