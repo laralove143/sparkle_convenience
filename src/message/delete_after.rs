@@ -34,12 +34,12 @@ pub struct DeleteParamsWebhook {
 impl ResponseHandle<'_, Message, DeleteParamsUnknown> {
     /// Delete the message after the given duration
     ///
-    /// Resulting type of the [`Response`] is returned because the
+    /// Model type of the [`ResponseHandle`] is returned because the
     /// response has to be deserialized to delete the message anyway
     ///
     /// # Errors
     ///
-    /// Returns [`Error::DeserializeBody`] if deserializing the response fails
+    /// Returns [`DeserializeBodyError`] if deserializing the response fails
     pub async fn delete_after(self, after: Duration) -> Result<Message, DeserializeBodyError> {
         let http = Arc::clone(&self.bot.http);
         let message = self.model().await?;
