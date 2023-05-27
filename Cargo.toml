@@ -1,6 +1,6 @@
 [package]
 name = "sparkle-convenience"
-version = "0.15.8-rc.1"
+version = "0.16.0-rc.1"
 authors = ["lara <laralove143@icloud.com>"]
 edition = "2021"
 description = "A wrapper over Twilight designed to make it more convenient to use"
