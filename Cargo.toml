@@ -7,7 +7,7 @@ description = "A wrapper over Twilight designed to make it more convenient to us
 repository = "https://github.com/laralove143/sparkle-convenience/"
 license = "ISC"
 keywords = ["discord", "discord-api", "twilight"]
-categories = ["api-bindings", "asynchronous", "caching"]
+categories = ["api-bindings", "asynchronous"]
 
 [features]
 anyhow = ["dep:anyhow"]
