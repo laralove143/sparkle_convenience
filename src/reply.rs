@@ -54,7 +54,7 @@ pub struct Reply {
     /// See [`Reply::message_reference`]
     pub message_reference: Option<Id<MessageMarker>>,
     /// See [`Reply::message_reference`]
-    pub missing_message_reference_handle_method: MissingMessageReferenceHandleMethod,
+    pub missing_message_reference_handle_method: Option<MissingMessageReferenceHandleMethod>,
     /// See [`Reply::nonce`]
     pub nonce: Option<u64>,
     /// See [`Reply::username`]
@@ -114,7 +114,7 @@ impl Reply {
             sticker_ids: vec![],
             message_reference: None,
             nonce: None,
-            missing_message_reference_handle_method: MissingMessageReferenceHandleMethod::Fail,
+            missing_message_reference_handle_method: None,
             username: None,
             avatar_url: None,
             thread_id: None,
@@ -221,7 +221,7 @@ impl Reply {
         missing_handle_method: MissingMessageReferenceHandleMethod,
     ) -> Self {
         self.message_reference = Some(message_id);
-        self.missing_message_reference_handle_method = missing_handle_method;
+        self.missing_message_reference_handle_method = Some(missing_handle_method);
         self
     }
 

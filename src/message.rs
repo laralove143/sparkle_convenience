@@ -97,6 +97,13 @@ impl ReplyHandle<'_> {
         if let Some(allowed_mentions) = self.reply.allowed_mentions.as_ref() {
             create_message = create_message.allowed_mentions(allowed_mentions.as_ref());
         }
+        if let Some(missing_reference_handle_method) =
+            self.reply.missing_message_reference_handle_method
+        {
+            create_message = create_message.fail_if_not_exists(
+                missing_reference_handle_method == MissingMessageReferenceHandleMethod::Fail,
+            );
+        }
         if let Some(nonce) = self.reply.nonce {
             create_message = create_message.nonce(nonce);
         }
@@ -112,10 +119,6 @@ impl ReplyHandle<'_> {
                 .sticker_ids(&self.reply.sticker_ids)?
                 .flags(self.reply.flags)
                 .tts(self.reply.tts)
-                .fail_if_not_exists(
-                    self.reply.missing_message_reference_handle_method
-                        == MissingMessageReferenceHandleMethod::Fail,
-                )
                 .await?,
         })
     }
