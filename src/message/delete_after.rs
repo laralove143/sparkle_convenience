@@ -14,7 +14,7 @@ use crate::message::ResponseHandle;
 /// Marker type indicating that parameters to delete the message should be
 /// received by deserializing it
 #[derive(Debug, Clone, Copy)]
-pub struct DeleteParamsUnknown {}
+pub struct DeleteParamsUnknown;
 
 /// Parameters for deleting a regular message
 #[derive(Debug, Clone, Copy)]

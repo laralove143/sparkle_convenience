@@ -115,11 +115,11 @@ impl InteractionHandle<'_> {
     /// Returns [`UserError::MissingPermissions`] if the bot doesn't
     /// have the required permissions, the wrapped permissions are the
     /// permissions the bot is missing
-    pub fn check_permissions<C>(
+    pub const fn check_permissions<C>(
         &self,
         required_permissions: Permissions,
     ) -> Result<(), UserError<C>> {
-        let missing_permissions = required_permissions - self.app_permissions;
+        let missing_permissions = required_permissions.difference(self.app_permissions);
         if !missing_permissions.is_empty() {
             return Err(UserError::MissingPermissions(Some(missing_permissions)));
         }
@@ -482,6 +482,7 @@ mod tests {
     };
 
     #[test]
+    #[allow(clippy::redundant_clone, clippy::clone_on_ref_ptr)]
     fn atomic_preserved() {
         let responded = Arc::new(AtomicBool::new(false));
         let responded_clone = responded.clone();
