@@ -18,7 +18,6 @@
     clippy::float_cmp_const,
     clippy::fn_to_numeric_cast_any,
     clippy::format_push_string,
-    clippy::get_unwrap,
     clippy::if_then_some_else_none,
     clippy::indexing_slicing,
     clippy::integer_division,
@@ -90,6 +89,7 @@
     // must_not_suspend,
     // non_exhaustive_omitted_patterns,
 )]
+#![allow(clippy::redundant_pub_crate)]
 #![doc = include_str!("../README.md")]
 
 use std::{fmt::Debug, sync::Arc};
