@@ -155,9 +155,9 @@ impl InteractionHandle<'_> {
         match self.reply(reply).await {
             Ok(message) => Ok(message),
             Err(Error::Http(err))
-                if matches!(UserError::<C>::from_http_err(&err), UserError::Internal) =>
+                if !matches!(UserError::<C>::from_http_err(&err), UserError::Internal) =>
             {
-                Err(Error::Http(err))
+                Ok(None)
             }
             Err(err) => Err(err),
         }

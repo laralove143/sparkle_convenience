@@ -67,9 +67,9 @@ impl ReplyHandle<'_> {
         match self.create_message(channel_id).await {
             Ok(message) => Ok(Some(message)),
             Err(Error::Http(err))
-                if matches!(UserError::<C>::from_http_err(&err), UserError::Internal) =>
+                if !matches!(UserError::<C>::from_http_err(&err), UserError::Internal) =>
             {
-                Err(Error::Http(err))
+                Ok(None)
             }
             Err(err) => Err(err),
         }
