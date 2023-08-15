@@ -1,165 +1,389 @@
-#![allow(deprecated)]
+//! Convenient message, DM and webhook handling
 
-use std::fmt::{Debug, Display};
-
-use anyhow;
-use async_trait::async_trait;
-use twilight_http::{request::channel::message::CreateMessage, Response};
+use serde::de::DeserializeOwned;
+use twilight_http::{
+    request::channel::webhook::ExecuteWebhook,
+    response::{marker::EmptyBody, DeserializeBodyError},
+    Response,
+};
 use twilight_model::{
     channel::Message,
     id::{
-        marker::{ChannelMarker, UserMarker},
+        marker::{ChannelMarker, MessageMarker, UserMarker, WebhookMarker},
         Id,
     },
 };
 use twilight_validate::message::MessageValidationError;
 
 use crate::{
-    error,
-    error::{extract::HttpErrorExt, Error, ErrorExt, NoCustomError, UserError},
-    reply::Reply,
+    error::{Error, UserError},
+    message::delete_after::{DeleteParamsMessage, DeleteParamsUnknown, DeleteParamsWebhook},
+    reply::{MissingMessageReferenceHandleMethod, Reply},
     Bot,
 };
 
+mod delete_after;
+
+/// Allows convenient methods on message, DM and webhook message handling
+///
+/// Created with [`Bot::reply_handle`]
+#[derive(Debug, Clone, Copy)]
+pub struct ReplyHandle<'bot> {
+    bot: &'bot Bot,
+    reply: &'bot Reply,
+}
+
 impl Bot {
-    /// Handle an error returned in a message
+    /// Return a reply handle
+    #[must_use]
+    pub const fn reply_handle<'bot>(&'bot self, reply: &'bot Reply) -> ReplyHandle<'bot> {
+        ReplyHandle { bot: self, reply }
+    }
+}
+
+impl ReplyHandle<'_> {
+    /// Report an error returned in a message context to the user
     ///
-    /// The passed reply should be the reply that should be shown to the user
-    /// based on the error
+    /// See [`UserError`] for creating the error parameter
     ///
-    /// The type parameter `Custom` is used to determine if the error is
-    /// internal, if you don't have a custom error type, you can use
-    /// [`Bot::handle_error_no_custom`]
+    /// If the given error should be ignored, simply returns `Ok(None)` early
     ///
-    /// - If the given error should be ignored, simply returns early
-    /// - If the given error is internal, logs the error
-    /// - Tries to send the given reply to the channel, if it fails and the
-    ///   error is internal, logs the error, if it succeeds, returns the
-    ///   response
-    pub async fn handle_error<Custom: Display + Debug + Send + Sync + 'static>(
+    /// Creates a message with the reply to the given channel and returns the
+    /// response
+    ///
+    /// # Errors
+    ///
+    /// If [`ReplyHandle::create_message`] fails and the error is internal,
+    /// returns the error
+    pub async fn report_error<C: Send>(
         &self,
         channel_id: Id<ChannelMarker>,
-        reply: Reply,
-        error: anyhow::Error,
-    ) -> Option<Response<Message>> {
-        if error.ignore() {
-            return None;
+        error: UserError<C>,
+    ) -> Result<Option<ResponseHandle<'_, Message, DeleteParamsUnknown>>, Error> {
+        if matches!(error, UserError::Ignore) {
+            return Ok(None);
         }
 
-        if let Some(internal_err) = error.internal::<Custom>() {
-            self.log(internal_err).await;
-        }
-
-        let create_res = match self.http.create_message(channel_id).with_reply(&reply) {
-            Ok(create) => create.await.map_err(anyhow::Error::new),
-            Err(validation_err) => Err(validation_err.into()),
-        };
-
-        match create_res.map_err(error::ErrorExt::internal::<Custom>) {
-            Ok(response) => Some(response),
-            Err(create_err) => {
-                if let Some(create_internal_err) = create_err {
-                    self.log(create_internal_err).await;
-                }
-                None
+        match self.create_message(channel_id).await {
+            Ok(message) => Ok(Some(message)),
+            Err(Error::Http(err))
+                if !matches!(UserError::<C>::from_http_err(&err), UserError::Internal) =>
+            {
+                Ok(None)
             }
+            Err(err) => Err(err),
         }
     }
 
-    /// Handle an error without checking for a custom error type
+    /// Send a message using this reply
     ///
-    /// See [`Bot::handle_error`] for more information
-    pub async fn handle_error_no_custom(
+    /// # Errors
+    ///
+    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
+    /// [`CreateMessage`])
+    ///
+    /// Returns [`Error::Http`] if creating the message fails
+    ///
+    /// [`CreateMessage`]: twilight_http::request::channel::message::create_message::CreateMessage
+    pub async fn create_message(
         &self,
         channel_id: Id<ChannelMarker>,
-        reply: Reply,
-        error: anyhow::Error,
-    ) -> Option<Response<Message>> {
-        self.handle_error::<NoCustomError>(channel_id, reply, error)
-            .await
+    ) -> Result<ResponseHandle<'_, Message, DeleteParamsUnknown>, Error> {
+        let mut create_message = self.bot.http.create_message(channel_id);
+
+        if let Some(message_reference) = self.reply.message_reference {
+            create_message = create_message.reply(message_reference);
+        }
+        if let Some(allowed_mentions) = self.reply.allowed_mentions.as_ref() {
+            create_message = create_message.allowed_mentions(allowed_mentions.as_ref());
+        }
+        if let Some(missing_reference_handle_method) =
+            self.reply.missing_message_reference_handle_method
+        {
+            create_message = create_message.fail_if_not_exists(
+                missing_reference_handle_method == MissingMessageReferenceHandleMethod::Fail,
+            );
+        }
+        if let Some(nonce) = self.reply.nonce {
+            create_message = create_message.nonce(nonce);
+        }
+
+        Ok(ResponseHandle {
+            bot: self.bot,
+            delete_params: DeleteParamsUnknown {},
+            response: create_message
+                .content(&self.reply.content)?
+                .embeds(&self.reply.embeds)?
+                .components(&self.reply.components)?
+                .attachments(&self.reply.attachments)?
+                .sticker_ids(&self.reply.sticker_ids)?
+                .flags(self.reply.flags)
+                .tts(self.reply.tts)
+                .await?,
+        })
     }
-}
 
-/// Convenience methods for [`twilight_http::Client`]
-#[deprecated(note = "Use `Reply::create_private_message` instead")]
-#[async_trait]
-#[allow(clippy::module_name_repetitions)]
-pub trait HttpExt {
-    /// Send a private message to a user
-    async fn dm_user(&self, user_id: Id<UserMarker>) -> Result<CreateMessage<'_>, Error>;
-}
+    /// Edit a message using this reply
+    ///
+    /// Overwrites all of the older message
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
+    /// [`UpdateMessage`])
+    ///
+    /// Returns [`Error::Http`] if updating the message fails
+    ///
+    /// [`UpdateMessage`]: twilight_http::request::channel::message::update_message::UpdateMessage
+    pub async fn update_message(
+        &self,
+        channel_id: Id<ChannelMarker>,
+        message_id: Id<MessageMarker>,
+    ) -> Result<ResponseHandle<'_, Message, DeleteParamsMessage>, Error> {
+        let mut update_message = self.bot.http.update_message(channel_id, message_id);
 
-#[async_trait]
-impl HttpExt for twilight_http::Client {
-    async fn dm_user(&self, user_id: Id<UserMarker>) -> Result<CreateMessage<'_>, Error> {
+        if let Some(allowed_mentions) = self.reply.allowed_mentions.as_ref() {
+            update_message = update_message.allowed_mentions(allowed_mentions.as_ref());
+        }
+
+        Ok(ResponseHandle {
+            bot: self.bot,
+            delete_params: DeleteParamsMessage {
+                channel_id,
+                message_id,
+            },
+            response: update_message
+                .content(Some(&self.reply.content))?
+                .embeds(Some(&self.reply.embeds))?
+                .components(Some(&self.reply.components))?
+                .attachments(&self.reply.attachments)?
+                .flags(self.reply.flags)
+                .await?,
+        })
+    }
+
+    /// Send a DM using this reply
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
+    /// [`CreateMessage`])
+    ///
+    /// Returns [`Error::Http`] if creating or getting the private channel, or
+    /// creating the message fails
+    ///
+    /// Returns [`Error::DeserializeBody`] if deserializing the private channel
+    /// fails
+    ///
+    /// [`CreateMessage`]: twilight_http::request::channel::message::create_message::CreateMessage
+    pub async fn create_private_message(
+        &self,
+        user_id: Id<UserMarker>,
+    ) -> Result<ResponseHandle<'_, Message, DeleteParamsUnknown>, Error> {
         let channel_id = self
+            .bot
+            .http
             .create_private_channel(user_id)
             .await?
             .model()
             .await?
             .id;
 
-        Ok(self.create_message(channel_id))
+        self.create_message(channel_id).await
     }
-}
 
-/// Convenience methods for [`CreateMessage`]
-#[deprecated(note = "Use `Reply::create_message` instead")]
-#[async_trait]
-pub trait CreateMessageExt<'a>: Sized {
-    /// Add the given reply's data to the message
+    /// Edit a DM using this reply
     ///
-    /// Overwrites previous fields
+    /// Overwrites all of the older message
     ///
     /// # Errors
     ///
-    /// Returns [`MessageValidationError`] if the
-    /// reply is invalid
-    fn with_reply(self, reply: &'a Reply) -> Result<Self, MessageValidationError>;
-
-    /// Send the message, ignoring the error if it's
-    /// [`HttpErrorExt::missing_permissions`]
+    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
+    /// [`UpdateMessage`])
     ///
-    /// Useful when trying to report an error by sending a message
+    /// Returns [`Error::Http`] if creating or getting the private channel, or
+    /// updating the message fails
+    ///
+    /// [`UpdateMessage`]: twilight_http::request::channel::message::update_message::UpdateMessage
+    pub async fn update_private_message(
+        &self,
+        user_id: Id<UserMarker>,
+        message_id: Id<MessageMarker>,
+    ) -> Result<ResponseHandle<'_, Message, DeleteParamsMessage>, Error> {
+        let channel_id = self
+            .bot
+            .http
+            .create_private_channel(user_id)
+            .await?
+            .model()
+            .await?
+            .id;
+
+        self.update_message(channel_id, message_id).await
+    }
+
+    /// Execute a webhook using this reply
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Http`] if creating the response fails and the error is
-    /// not [`HttpErrorExt::missing_permissions`]
+    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
+    /// [`ExecuteWebhook`])
     ///
-    /// Returns [`Error::User`] with [`UserError::Ignore`] if the error is
-    /// [`HttpErrorExt::missing_permissions`]
-    async fn execute_ignore_permissions(self) -> Result<Response<Message>, Error>;
-}
-
-#[async_trait]
-impl<'a> CreateMessageExt<'a> for CreateMessage<'a> {
-    fn with_reply(self, reply: &'a Reply) -> Result<Self, MessageValidationError> {
-        let mut message = self
-            .embeds(&reply.embeds)?
-            .components(&reply.components)?
-            .attachments(&reply.attachments)?
-            .flags(reply.flags)
-            .tts(reply.tts);
-
-        if !reply.content.is_empty() {
-            message = message.content(&reply.content)?;
-        }
-
-        if let Some(allowed_mentions) = &reply.allowed_mentions {
-            message = message.allowed_mentions(allowed_mentions.as_ref());
-        }
-
-        Ok(message)
-    }
-
-    async fn execute_ignore_permissions(self) -> Result<Response<Message>, Error> {
-        self.await.map_err(|http_err| {
-            if http_err.missing_permissions() {
-                UserError::Ignore.into()
-            } else {
-                http_err.into()
-            }
+    /// Returns [`Error::Http`] if executing the webhook fails
+    pub async fn execute_webhook(
+        &self,
+        webhook_id: Id<WebhookMarker>,
+        token: &str,
+    ) -> Result<ResponseHandle<'_, EmptyBody, DeleteParamsUnknown>, Error> {
+        Ok(ResponseHandle {
+            bot: self.bot,
+            delete_params: DeleteParamsUnknown {},
+            response: self.execute_webhook_request(webhook_id, token)?.await?,
         })
+    }
+
+    /// Execute a webhook using this reply and wait for the message to be
+    /// received in the response
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
+    /// [`ExecuteWebhook`])
+    ///
+    /// Returns [`Error::Http`] if executing the webhook fails
+    pub async fn execute_webhook_and_wait(
+        &self,
+        webhook_id: Id<WebhookMarker>,
+        token: &str,
+    ) -> Result<ResponseHandle<'_, Message, DeleteParamsUnknown>, Error> {
+        Ok(ResponseHandle {
+            bot: self.bot,
+            delete_params: DeleteParamsUnknown {},
+            response: self
+                .execute_webhook_request(webhook_id, token)?
+                .wait()
+                .await?,
+        })
+    }
+
+    /// Update a webhook message using this reply
+    ///
+    /// Overwrites all of the older message
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::MessageValidation`] if the reply is invalid (Refer to
+    /// [`UpdateWebhookMessage`])
+    ///
+    /// Returns [`Error::Http`] if updating the webhook message fails
+    ///
+    /// [`UpdateWebhookMessage`]:
+    /// twilight_http::request::channel::webhook::update_webhook_message::UpdateWebhookMessage
+    pub async fn update_webhook_message(
+        &self,
+        webhook_id: Id<WebhookMarker>,
+        token: String,
+        message_id: Id<MessageMarker>,
+    ) -> Result<ResponseHandle<'_, Message, DeleteParamsWebhook>, Error> {
+        let mut update_webhook_message = self
+            .bot
+            .http
+            .update_webhook_message(webhook_id, &token, message_id);
+
+        if let Some(thread_id) = self.reply.thread_id {
+            update_webhook_message = update_webhook_message.thread_id(thread_id);
+        }
+        if let Some(allowed_mentions) = self.reply.allowed_mentions.as_ref() {
+            update_webhook_message =
+                update_webhook_message.allowed_mentions(allowed_mentions.as_ref());
+        }
+
+        let response = update_webhook_message
+            .content(Some(&self.reply.content))?
+            .embeds(Some(&self.reply.embeds))?
+            .components(Some(&self.reply.components))?
+            .attachments(&self.reply.attachments)?
+            .await?;
+
+        Ok(ResponseHandle {
+            bot: self.bot,
+            delete_params: DeleteParamsWebhook {
+                webhook_id,
+                token,
+                message_id,
+            },
+            response,
+        })
+    }
+
+    fn execute_webhook_request<'handle>(
+        &'handle self,
+        webhook_id: Id<WebhookMarker>,
+        token: &'handle str,
+    ) -> Result<ExecuteWebhook<'_>, MessageValidationError> {
+        let mut execute_webhook = self.bot.http.execute_webhook(webhook_id, token);
+
+        if let Some(username) = self.reply.username.as_ref() {
+            execute_webhook = execute_webhook.username(username)?;
+        }
+        if let Some(avatar_url) = self.reply.avatar_url.as_ref() {
+            execute_webhook = execute_webhook.avatar_url(avatar_url);
+        }
+        if let Some(thread_id) = self.reply.thread_id {
+            execute_webhook = execute_webhook.thread_id(thread_id);
+        }
+        if let Some(thread_name) = self.reply.thread_name.as_ref() {
+            execute_webhook = execute_webhook.thread_name(thread_name);
+        }
+        if let Some(allowed_mentions) = self.reply.allowed_mentions.as_ref() {
+            execute_webhook = execute_webhook.allowed_mentions(allowed_mentions.as_ref());
+        }
+
+        Ok(execute_webhook
+            .content(&self.reply.content)?
+            .embeds(&self.reply.embeds)?
+            .components(&self.reply.components)?
+            .attachments(&self.reply.attachments)?
+            .flags(self.reply.flags)
+            .tts(self.reply.tts))
+    }
+}
+
+/// Wrapper over Twilight's [`Response`] providing additional methods
+///
+/// # Delete After
+///
+/// `delete_after` methods are provided to delete a sent message after the given
+/// duration as an alternative to ephemeral messages
+///
+/// `DeleteParams` type parameter is used in these methods, it's a type
+/// parameter so that the method can be re-defined based on it and return
+/// different types known at compile time
+///
+/// ## Warnings
+///
+/// If an error occurs when deleting the message, it's ignored since
+/// handling it would require holding the current task
+#[derive(Debug)]
+pub struct ResponseHandle<'bot, T, DeleteParams> {
+    /// The inner response of this handle
+    pub response: Response<T>,
+    bot: &'bot Bot,
+    delete_params: DeleteParams,
+}
+
+impl<T: DeserializeOwned + Unpin + Send, U: Send> ResponseHandle<'_, T, U> {
+    /// Deserialize the response into the type
+    ///
+    /// Akin to [`Response::model`]
+    ///
+    /// This abstracted method is provided to keep this similar to Twilight's
+    /// API
+    ///
+    /// # Errors
+    ///
+    /// Returns the error [`Response::model`] returns
+    pub async fn model(self) -> Result<T, DeserializeBodyError> {
+        self.response.model().await
     }
 }

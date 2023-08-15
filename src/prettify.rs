@@ -1,3 +1,5 @@
+//! Formatting types into human-readable pretty strings
+
 use std::fmt::Debug;
 
 use titlecase::titlecase;

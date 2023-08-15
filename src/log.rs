@@ -1,10 +1,4 @@
-#[allow(deprecated)]
-use std::{
-    fmt::{Debug, Display, Write as _},
-    fs::File,
-    io::Write,
-};
-
+use twilight_http::request::channel::webhook::ExecuteWebhook;
 use twilight_model::{
     http::attachment::Attachment,
     id::{marker::ChannelMarker, Id},
@@ -12,46 +6,7 @@ use twilight_model::{
 
 use crate::{error::Error, Bot};
 
-/// The format to use when converting a message to string
-#[deprecated(note = "Will be removed as `Bot::log` will take `String`")]
-#[derive(Clone, Copy, Debug)]
-pub enum DisplayFormat {
-    /// Use the `Display` implementation on the type, akin to `format!("{x}")`
-    Display,
-    /// Use the `Debug` implementation on the type, akin to `format!("{x:?}")`
-    Debug,
-    /// Use the alternate formatting implementation on the type, akin to
-    /// `format!("{x:#?}")`
-    Alternate,
-}
-
-impl DisplayFormat {
-    fn writeln<T: Display + Debug>(self, s: &mut String, t: &T) {
-        let _write_res = match self {
-            Self::Display => writeln!(s, "{t}"),
-            Self::Debug => writeln!(s, "{t:?}"),
-            Self::Alternate => writeln!(s, "{t:#?}"),
-        };
-    }
-}
-
 impl Bot {
-    /// Set the format to use for converting messages to strings
-    ///
-    /// Defaults to [`DisplayFormat::Display`]
-    #[deprecated(note = "Will be removed as `Bot::log` will take `String`")]
-    pub fn set_logging_format(&mut self, format: DisplayFormat) {
-        self.logging_format = format;
-    }
-
-    /// Disable printing messages when logging them
-    ///
-    /// It's enabled by default
-    #[deprecated(note = "Logging functionality will be reduced to webhooks only")]
-    pub fn disable_logging_printing(&mut self) {
-        self.logging_print_enabled = false;
-    }
-
     /// Set the channel to log messages to
     ///
     /// Uses the first webhook in the channel that's made by the bot or creates
@@ -92,65 +47,50 @@ impl Bot {
         Ok(())
     }
 
-    /// Set the file to log messages to
-    #[deprecated(note = "Logging functionality will be reduced to webhooks only")]
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn set_logging_file(&mut self, logging_file_path: String) {
-        self.logging_file_path = Some(logging_file_path);
-    }
-
-    /// Log the given message
+    /// Log the given message to the channel set in [`Bot::set_logging_channel`]
     ///
-    /// - Unless [`Bot::disable_logging_printing`] was called with false, prints
-    ///   the message
-    /// - If [`Bot::set_logging_channel`] was called, executes a webhook with
-    ///   the message in an attachment (An attachment is used to raise the
-    ///   character limit)
-    /// - If [`Bot::set_logging_file`] was called, appends the message to the
-    ///   file
+    /// If the message is too long for message content, sends an attachment with
+    /// the message instead
     ///
-    /// If there's an error with logging, also logs the error
+    /// # Errors
     ///
-    /// Uses value set with [`Bot::set_logging_format`]
-    pub async fn log<T: Display + Debug + Send>(&self, message: T) {
-        let mut s = String::new();
-        self.logging_format.writeln(&mut s, &message);
-
-        if let Err(e) = self.log_webhook(s.clone()).await {
-            let _ = writeln!(s, "Failed to log the message in the channel:\n");
-            self.logging_format.writeln(&mut s, &e);
-        }
-
-        if let Some(path) = &self.logging_file_path {
-            if let Err(e) = File::options()
-                .create(true)
-                .append(true)
-                .open(path)
-                .and_then(|mut file| writeln!(file, "{s}"))
-            {
-                let _ = writeln!(s, "Failed to log the message to file:\n");
-                self.logging_format.writeln(&mut s, &e);
+    /// Returns [`Error::LoggingWebhookMissing`] if [`Bot::set_logging_channel`]
+    /// wasn't called
+    ///
+    /// Returns [`Error::MessageValidation`] if the bot's username is invalid as
+    /// a webhook's username
+    ///
+    /// Returns [`Error::Http`] if executing the webhook fails
+    pub async fn log(&self, message: &str) -> Result<(), Error> {
+        match self.logging_execute_webhook()?.content(message) {
+            Ok(exec_webhook) => exec_webhook.await?,
+            Err(_) => {
+                self.logging_execute_webhook()?
+                    .content(&format!(
+                        "{}...",
+                        message.chars().take(100).collect::<String>(),
+                    ))?
+                    .attachments(&[Attachment::from_bytes(
+                        "log_message.txt".to_owned(),
+                        message.to_owned().into_bytes(),
+                        0,
+                    )])?
+                    .await?
             }
-        }
-
-        if self.logging_print_enabled {
-            println!("{s}");
-        }
-    }
-
-    async fn log_webhook(&self, message: String) -> Result<(), Error> {
-        if let Some((webhook_id, webhook_token)) = &self.logging_webhook {
-            self.http
-                .execute_webhook(*webhook_id, webhook_token)
-                .username(&self.user.name)?
-                .attachments(&[Attachment::from_bytes(
-                    "error_message.txt".to_string(),
-                    message.into_bytes(),
-                    0,
-                )])?
-                .await?;
-        }
+        };
 
         Ok(())
+    }
+
+    fn logging_execute_webhook(&self) -> Result<ExecuteWebhook<'_>, Error> {
+        let (webhook_id, webhook_token) = self
+            .logging_webhook
+            .as_ref()
+            .ok_or(Error::LoggingWebhookMissing)?;
+
+        Ok(self
+            .http
+            .execute_webhook(*webhook_id, webhook_token)
+            .username(&self.user.name)?)
     }
 }

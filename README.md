@@ -1,3 +1,8 @@
+# ❓ RC INFO
+
+This version isn't unstable, but it includes breaking changes. It will be published as non-RC when Twilight
+publishes its next version so that the version of this crate follows Twilight's version
+
 # ✨😌 Sparkle Convenience
 
 - 🗄️ [GitHub](https://github.com/laralove143/sparkle-convenience)
@@ -12,6 +17,7 @@ relying on callbacks and mostly following Twilight patterns while making your li
 - Get your bot started with one method
 - Defer, respond to or update responses of interactions without having to track anything yourself
 - Extract interaction data easily
+- Send timed messages that are deleted after a timeout
 - Handle user errors with little boilerplate and with edge cases caught
 - Log internal errors with webhooks
 - Much more you can find out in the docs!
@@ -19,7 +25,7 @@ relying on callbacks and mostly following Twilight patterns while making your li
 ## 😋 A TASTE OF CONVENIENCE
 
 <!-- @formatter:off -->
-```rust
+```rust,ignore
 let bot = Bot::new(
     "forgot to leak my token".to_owned(),
     Intents::empty(),
@@ -52,6 +58,10 @@ if interaction.name().ok()? == "pay_respects" {
 }
 ```
 <!-- @formatter:on -->
+
+# 🚚 CARGO FEATURES
+
+- `anyhow`: Pulls the `anyhow` crate to provide convenience features around it in the `error` module
 
 ## ✉️ CONTACT
 

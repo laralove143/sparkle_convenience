@@ -1,6 +1,6 @@
 use twilight_http::api_error::{ApiError, GeneralApiError};
 
-pub enum Error {
+pub(crate) enum Error {
     UnknownMessage,
     MissingAccess,
     FailedDm,
@@ -10,7 +10,7 @@ pub enum Error {
 }
 
 impl Error {
-    pub const fn from_http_err(err: &twilight_http::Error) -> Self {
+    pub(crate) const fn from_http_err(err: &twilight_http::Error) -> Self {
         let code = if let twilight_http::error::ErrorType::Response {
             error: ApiError::General(GeneralApiError { code, .. }),
             ..

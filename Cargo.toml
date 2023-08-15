@@ -1,20 +1,24 @@
 [package]
 name = "sparkle-convenience"
-version = "0.15.8"
+version = "0.16.0-rc.3"
 authors = ["lara <laralove143@icloud.com>"]
 edition = "2021"
 description = "A wrapper over Twilight designed to make it more convenient to use"
 repository = "https://github.com/laralove143/sparkle-convenience/"
 license = "ISC"
 keywords = ["discord", "discord-api", "twilight"]
-categories = ["api-bindings", "asynchronous", "caching"]
+categories = ["api-bindings", "asynchronous"]
+
+[features]
+anyhow = ["dep:anyhow"]
 
 [dependencies]
 twilight-gateway = { version = "0.15", default-features = false, features = ["twilight-http"] }
 twilight-http = { version = "0.15", default-features = false }
 twilight-model = "0.15"
 twilight-validate = "0.15"
+tokio = "1.28"
+serde = { version = "1.0", default-features = false }
 titlecase = "2.2"
-async-trait = "0.1"
-anyhow = "1.0"
+anyhow = { version = "1.0", optional = true }
 thiserror = "1.0"
