@@ -1,4 +1,4 @@
-# ❓ RC INFO
+# ❓ RC Info
 
 This version isn't unstable, but it includes breaking changes. It will be published as non-RC when Twilight
 publishes its next version so that the version of this crate follows Twilight's version
