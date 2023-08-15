@@ -1,8 +1,3 @@
-# ❓ RC INFO
-
-This version isn't unstable, but it includes breaking changes. It will be published as non-RC when Twilight
-publishes its next version so that the version of this crate follows Twilight's version
-
 # ✨😌 Sparkle Convenience
 
 - 🗄️ [GitHub](https://github.com/laralove143/sparkle-convenience)
@@ -12,7 +7,7 @@ publishes its next version so that the version of this crate follows Twilight's 
 A wrapper over [Twilight](https://github.com/twilight-rs/twilight) that's designed to be convenient to use, without
 relying on callbacks and mostly following Twilight patterns while making your life easier
 
-## ✨ FEATURES
+## ✨ Features
 
 - Get your bot started with one method
 - Defer, respond to or update responses of interactions without having to track anything yourself
@@ -22,7 +17,9 @@ relying on callbacks and mostly following Twilight patterns while making your li
 - Log internal errors with webhooks
 - Much more you can find out in the docs!
 
-## 😋 A TASTE OF CONVENIENCE
+## 😋 A Taste of Convenience
+
+There's [Sparkle Template](https://github.com/laralove143/sparkle-template), providing the boilerplate for Sparkle Convenience, this can also act as a full example usage
 
 <!-- @formatter:off -->
 ```rust,ignore
@@ -59,11 +56,11 @@ if interaction.name().ok()? == "pay_respects" {
 ```
 <!-- @formatter:on -->
 
-# 🚚 CARGO FEATURES
+# 🚚 Cargo Features
 
 - `anyhow`: Pulls the `anyhow` crate to provide convenience features around it in the `error` module
 
-## ✉️ CONTACT
+## ✉️ Contact
 
 Feature Requests? Bugs? Support? Contributions? You name it, I'm always looking for community feedback from anyone who
 uses my work!
