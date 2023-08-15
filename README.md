@@ -19,6 +19,8 @@ relying on callbacks and mostly following Twilight patterns while making your li
 
 ## 😋 A TASTE OF CONVENIENCE
 
+There's [Sparkle Template](https://github.com/laralove143/sparkle-template), providing the boilerplate for Sparkle Convenience, this can also act as a full example usage
+
 <!-- @formatter:off -->
 ```rust,ignore
 let bot = Bot::new(
