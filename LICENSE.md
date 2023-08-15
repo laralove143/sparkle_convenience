@@ -1,6 +1,6 @@
 ISC License (ISC)
 
-Copyright (c) 2022 (c) The Twilight Contributors
+Copyright (c) 2022 (c) The Sparkle Convenience Contributors
 
 Permission to use, copy, modify, and/or distribute this software for any purpose
 with or without fee is hereby granted, provided that the above copyright notice
