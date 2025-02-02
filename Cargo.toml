@@ -1,24 +1,107 @@
 [package]
-name = "sparkle-convenience"
-version = "0.16.0-rc.3"
-authors = ["lara <laralove143@icloud.com>"]
-edition = "2021"
-description = "A wrapper over Twilight designed to make it more convenient to use"
-repository = "https://github.com/laralove143/sparkle-convenience/"
-license = "ISC"
-keywords = ["discord", "discord-api", "twilight"]
+authors = ["lara <me@lara.lv>"]
 categories = ["api-bindings", "asynchronous"]
+description = "A wrapper over Twilight designed to make it more convenient to use"
+edition = "2021"
+keywords = ["discord", "discord-api", "twilight"]
+license = "ISC"
+name = "sparkle-convenience"
+repository = "https://github.com/laralove143/sparkle-convenience/"
+version = "0.16.0-rc.3"
 
 [features]
 anyhow = ["dep:anyhow"]
 
 [dependencies]
-twilight-gateway = { version = "0.15", default-features = false, features = ["twilight-http"] }
+anyhow = { version = "1.0", optional = true }
+serde = { version = "1.0", default-features = false }
+thiserror = "1.0"
+titlecase = "2.2"
+tokio = "1.28"
+twilight-gateway = { version = "0.15", default-features = false, features = [
+    "twilight-http",
+] }
 twilight-http = { version = "0.15", default-features = false }
 twilight-model = "0.15"
 twilight-validate = "0.15"
-tokio = "1.28"
-serde = { version = "1.0", default-features = false }
-titlecase = "2.2"
-anyhow = { version = "1.0", optional = true }
-thiserror = "1.0"
+
+[lints.rust]
+absolute-paths-not-starting-with-crate = "warn"
+ambiguous-negative-literals = "warn"
+async-idents = "warn"
+deprecated-safe-2024 = "warn"
+disjoint-capture-migration = "warn"
+edition-2024-expr-fragment-specifier = "warn"
+elided-lifetime-in-path = "warn"
+elided-lifetimes-in-paths = "warn"
+explicit-outlives-requirements = "warn"
+ffi-unwind-calls = "warn"
+if-let-rescope = "warn"
+impl-trait-overcaptures = "warn"
+keyword-idents = "warn"
+keyword-idents-2018 = "warn"
+keyword-idents-2024 = "warn"
+let-underscore-drop = "warn"
+macro-use-extern-crate = "warn"
+meta-variable-misuse = "warn"
+missing-abi = "warn"
+missing-copy-implementations = "warn"
+missing-debug-implementations = "warn"
+missing-docs = "warn"
+missing-unsafe-on-extern = "warn"
+non-ascii-idents = "warn"
+or-patterns-back-compat = "warn"
+redundant-imports = "warn"
+redundant-lifetimes = "warn"
+rust-2021-incompatible-closure-captures = "warn"
+rust-2021-incompatible-or-patterns = "warn"
+rust-2021-prefixes-incompatible-syntax = "warn"
+rust-2021-prelude-collisions = "warn"
+rust-2024-guarded-string-incompatible-syntax = "warn"
+rust-2024-incompatible-pat = "warn"
+rust-2024-prelude-collisions = "warn"
+single-use-lifetime = "warn"
+single-use-lifetimes = "warn"
+tail-expr-drop-order = "warn"
+trivial-casts = "warn"
+trivial-numeric-casts = "warn"
+unit-bindings = "warn"
+unnameable-types = "warn"
+unreachable-pub = "warn"
+unsafe-attr-outside-unsafe = "warn"
+unsafe-code = "warn"
+unsafe-op-in-unsafe-fn = "warn"
+unstable-features = "warn"
+unused-crate-dependencies = "warn"
+unused-extern-crates = "warn"
+unused-import-braces = "warn"
+unused-lifetimes = "warn"
+unused-macro-rules = "warn"
+unused-qualifications = "warn"
+unused-results = "warn"
+variant-size-differences = "warn"
+
+[lints.clippy]
+blanket-clippy-restriction-lints = "allow"
+cargo = { level = "warn", priority = -1 }
+implicit-return = "allow"
+missing-docs-in-private-items = "allow"
+missing-trait-methods = "allow"
+module-name-repetitions = "allow"
+multiple-crate-versions = "allow"
+multiple-inherent-impl = "allow"
+non-ascii-literal = "allow"
+nursery = { level = "warn", priority = -1 }
+partial-pub-fields = "allow"
+pedantic = { level = "warn", priority = -1 }
+print-stderr = "allow"
+print-stdout = "allow"
+question-mark-used = "allow"
+restriction = { level = "warn", priority = -1 }
+self-named-module-files = "allow"
+single-call-fn = "allow"
+single-char-lifetime-names = "allow"
+std-instead-of-alloc = "allow"
+std-instead-of-core = "allow"
+unwrap-used = "allow"
+wildcard-enum-match-arm = "allow"

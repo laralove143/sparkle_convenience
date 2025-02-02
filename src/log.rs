@@ -1,10 +1,10 @@
 use twilight_http::request::channel::webhook::ExecuteWebhook;
 use twilight_model::{
     http::attachment::Attachment,
-    id::{marker::ChannelMarker, Id},
+    id::{Id, marker::ChannelMarker},
 };
 
-use crate::{error::Error, Bot};
+use crate::{Bot, error::Error};
 
 impl Bot {
     /// Set the channel to log messages to

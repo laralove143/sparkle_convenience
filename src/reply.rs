@@ -5,8 +5,8 @@ use twilight_model::{
     channel::message::{AllowedMentions, Component, Embed, MessageFlags},
     http::{attachment::Attachment, interaction::InteractionResponseData},
     id::{
-        marker::{ChannelMarker, MessageMarker, StickerMarker},
         Id,
+        marker::{ChannelMarker, MessageMarker, StickerMarker},
     },
 };
 

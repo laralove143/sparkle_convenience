@@ -1,8 +1,11 @@
 //! Extracting data from interactions
 
 use twilight_model::application::interaction::{
-    application_command::CommandData, message_component::MessageComponentInteractionData,
-    modal::ModalInteractionData, Interaction, InteractionData,
+    Interaction,
+    InteractionData,
+    application_command::CommandData,
+    message_component::MessageComponentInteractionData,
+    modal::ModalInteractionData,
 };
 
 /// Utility methods for [`Interaction`]

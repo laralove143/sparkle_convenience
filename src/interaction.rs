@@ -3,8 +3,8 @@
 use std::{
     fmt::Debug,
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
 };
 
@@ -15,24 +15,25 @@ use twilight_model::{
         interaction::{Interaction, InteractionType},
     },
     channel::{
-        message::{
-            component::{ActionRow, TextInput},
-            Component, MessageFlags,
-        },
         Message,
+        message::{
+            Component,
+            MessageFlags,
+            component::{ActionRow, TextInput},
+        },
     },
     guild::Permissions,
     http::interaction::{InteractionResponse, InteractionResponseData, InteractionResponseType},
     id::{
-        marker::{InteractionMarker, MessageMarker},
         Id,
+        marker::{InteractionMarker, MessageMarker},
     },
 };
 
 use crate::{
+    Bot,
     error::{Error, UserError},
     reply::Reply,
-    Bot,
 };
 
 pub mod extract;
@@ -313,14 +314,10 @@ impl InteractionHandle<'_> {
 
             self.bot
                 .interaction_client()
-                .create_response(
-                    self.id,
-                    &self.token,
-                    &InteractionResponse {
-                        kind,
-                        data: Some(reply.into()),
-                    },
-                )
+                .create_response(self.id, &self.token, &InteractionResponse {
+                    kind,
+                    data: Some(reply.into()),
+                })
                 .await?;
 
             self.set_responded(true);
@@ -344,17 +341,13 @@ impl InteractionHandle<'_> {
 
         self.bot
             .interaction_client()
-            .create_response(
-                self.id,
-                &self.token,
-                &InteractionResponse {
-                    kind: InteractionResponseType::ApplicationCommandAutocompleteResult,
-                    data: Some(InteractionResponseData {
-                        choices: Some(choices),
-                        ..Default::default()
-                    }),
-                },
-            )
+            .create_response(self.id, &self.token, &InteractionResponse {
+                kind: InteractionResponseType::ApplicationCommandAutocompleteResult,
+                data: Some(InteractionResponseData {
+                    choices: Some(choices),
+                    ..Default::default()
+                }),
+            })
             .await?;
 
         self.set_responded(true);
@@ -384,28 +377,24 @@ impl InteractionHandle<'_> {
 
         self.bot
             .interaction_client()
-            .create_response(
-                self.id,
-                &self.token,
-                &InteractionResponse {
-                    kind: InteractionResponseType::Modal,
-                    data: Some(InteractionResponseData {
-                        custom_id: Some(custom_id.into()),
-                        title: Some(title.into()),
-                        components: Some(
-                            text_inputs
-                                .into_iter()
-                                .map(|text_input| {
-                                    Component::ActionRow(ActionRow {
-                                        components: vec![Component::TextInput(text_input)],
-                                    })
+            .create_response(self.id, &self.token, &InteractionResponse {
+                kind: InteractionResponseType::Modal,
+                data: Some(InteractionResponseData {
+                    custom_id: Some(custom_id.into()),
+                    title: Some(title.into()),
+                    components: Some(
+                        text_inputs
+                            .into_iter()
+                            .map(|text_input| {
+                                Component::ActionRow(ActionRow {
+                                    components: vec![Component::TextInput(text_input)],
                                 })
-                                .collect(),
-                        ),
-                        ..Default::default()
-                    }),
-                },
-            )
+                            })
+                            .collect(),
+                    ),
+                    ..Default::default()
+                }),
+            })
             .await?;
 
         self.set_responded(true);
@@ -462,11 +451,7 @@ impl InteractionHandle<'_> {
 
     fn last_message_id(&self) -> Option<Id<MessageMarker>> {
         let id = self.last_message_id.load(Ordering::Acquire);
-        if id == 0 {
-            None
-        } else {
-            Some(Id::new(id))
-        }
+        if id == 0 { None } else { Some(Id::new(id)) }
     }
 
     fn set_last_message_id(&self, val: Id<MessageMarker>) {
@@ -477,8 +462,8 @@ impl InteractionHandle<'_> {
 #[cfg(test)]
 mod tests {
     use std::sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     };
 
     #[test]

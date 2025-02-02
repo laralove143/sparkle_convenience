@@ -1,11 +1,11 @@
 use std::{sync::Arc, time::Duration};
 
-use twilight_http::{response::DeserializeBodyError, Client};
+use twilight_http::{Client, response::DeserializeBodyError};
 use twilight_model::{
     channel::Message,
     id::{
-        marker::{ChannelMarker, MessageMarker, WebhookMarker},
         Id,
+        marker::{ChannelMarker, MessageMarker, WebhookMarker},
     },
 };
 
@@ -112,8 +112,9 @@ mod tests {
     use crate::{
         error::Error,
         message::{
+            ReplyHandle,
+            ResponseHandle,
             delete_after::{DeleteParamsMessage, DeleteParamsWebhook},
-            ReplyHandle, ResponseHandle,
         },
     };
 
