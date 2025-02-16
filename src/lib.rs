@@ -1,5 +1,12 @@
 #![doc = include_str!("../README.md")]
 
+pub mod error;
+pub mod interaction;
+mod log;
+pub mod message;
+pub mod prettify;
+pub mod reply;
+
 use std::{fmt::Debug, sync::Arc};
 
 use error::Error;
@@ -18,25 +25,18 @@ use twilight_model::{
     user::CurrentUser,
 };
 
-pub mod error;
-pub mod interaction;
-mod log;
-pub mod message;
-pub mod prettify;
-pub mod reply;
-
 /// All data required to make a bot run
 #[derive(Debug)]
 #[must_use]
 pub struct Bot {
-    /// Twilight's HTTP client
-    pub http: Arc<Client>,
     /// The application info of the bot
     pub application: Application,
-    /// The user info of the bot
-    pub user: CurrentUser,
+    /// Twilight's HTTP client
+    pub http: Arc<Client>,
     /// The webhook to log errors using
     pub logging_webhook: Option<(Id<WebhookMarker>, String)>,
+    /// The user info of the bot
+    pub user: CurrentUser,
 }
 
 impl Bot {
@@ -51,8 +51,8 @@ impl Bot {
     ///
     /// Returns [`Error::Http`] or [`Error::DeserializeBody`] if getting the
     /// application info fails
-    pub async fn new(
-        token: impl Into<String> + Send,
+    pub async fn new<T: Into<String> + Send>(
+        token: T,
         intents: Intents,
         event_types: EventTypeFlags,
     ) -> Result<(Self, Shards), Error> {

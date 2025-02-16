@@ -8,17 +8,6 @@ use twilight_model::application::interaction::{
     modal::ModalInteractionData,
 };
 
-/// Utility methods for [`Interaction`]
-pub trait InteractionExt {
-    /// Return the name or custom ID of the interaction
-    ///
-    /// Returns `None` when the interaction type is
-    /// [`InteractionType::Ping`]
-    ///
-    /// [`InteractionType::Ping`]: twilight_model::application::interaction::InteractionType::Ping
-    fn name(&self) -> Option<&str>;
-}
-
 impl InteractionExt for Interaction {
     fn name(&self) -> Option<&str> {
         match self.data.as_ref()? {
@@ -26,6 +15,32 @@ impl InteractionExt for Interaction {
             InteractionData::MessageComponent(data) => Some(&data.custom_id),
             InteractionData::ModalSubmit(data) => Some(&data.custom_id),
             _ => None,
+        }
+    }
+}
+
+impl InteractionDataExt for InteractionData {
+    fn command(self) -> Option<CommandData> {
+        if let Self::ApplicationCommand(data) = self {
+            Some(*data)
+        } else {
+            None
+        }
+    }
+
+    fn component(self) -> Option<MessageComponentInteractionData> {
+        if let Self::MessageComponent(data) = self {
+            Some(data)
+        } else {
+            None
+        }
+    }
+
+    fn modal(self) -> Option<ModalInteractionData> {
+        if let Self::ModalSubmit(data) = self {
+            Some(data)
+        } else {
+            None
         }
     }
 }
@@ -63,28 +78,13 @@ pub trait InteractionDataExt {
     fn modal(self) -> Option<ModalInteractionData>;
 }
 
-impl InteractionDataExt for InteractionData {
-    fn command(self) -> Option<CommandData> {
-        if let Self::ApplicationCommand(data) = self {
-            Some(*data)
-        } else {
-            None
-        }
-    }
-
-    fn component(self) -> Option<MessageComponentInteractionData> {
-        if let Self::MessageComponent(data) = self {
-            Some(data)
-        } else {
-            None
-        }
-    }
-
-    fn modal(self) -> Option<ModalInteractionData> {
-        if let Self::ModalSubmit(data) = self {
-            Some(data)
-        } else {
-            None
-        }
-    }
+/// Utility methods for [`Interaction`]
+pub trait InteractionExt {
+    /// Return the name or custom ID of the interaction
+    ///
+    /// Returns `None` when the interaction type is
+    /// [`InteractionType::Ping`]
+    ///
+    /// [`InteractionType::Ping`]: twilight_model::application::interaction::InteractionType::Ping
+    fn name(&self) -> Option<&str>;
 }

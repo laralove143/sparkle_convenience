@@ -1,52 +1,32 @@
 //! User error types and converting options to results
 
-use std::fmt::{Debug, Display, Formatter};
-
-use twilight_model::guild::Permissions;
-
 mod http_error;
+#[cfg(test)]
+mod tests;
 
-/// Trait implemented on types that can be converted into an [`anyhow::Error`]
-#[allow(clippy::module_name_repetitions)]
-#[cfg(feature = "anyhow")]
-pub trait IntoError<T>: Sized {
-    /// Conditionally wrap this type in [`anyhow::Error`]
-    ///
-    /// The error message only includes the type info and isn't very useful
-    /// without enabling backtrace
-    #[allow(clippy::missing_errors_doc)]
-    fn ok(self) -> Result<T, anyhow::Error>;
-}
+use std::{
+    any::type_name,
+    error,
+    fmt::{self, Debug, Display, Formatter},
+};
 
-#[cfg(feature = "anyhow")]
-impl<T> IntoError<T> for Option<T> {
-    fn ok(self) -> Result<T, anyhow::Error> {
-        self.ok_or_else(|| anyhow::anyhow!("{} is None", std::any::type_name::<Self>()))
-    }
-}
+use twilight_gateway::stream;
+use twilight_http::response::DeserializeBodyError;
+use twilight_model::guild::Permissions;
+use twilight_validate::{message::MessageValidationError, request};
 
 /// Errors returned in this library
-#[allow(clippy::module_name_repetitions)]
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// Tried to send an initial response for an interaction multiple times
     #[error("initial response for that interaction has already been sent")]
     AlreadyResponded,
+    /// A [`DeserializeBodyError`] was returned
+    #[error("{0}")]
+    DeserializeBody(#[from] DeserializeBodyError),
     /// A [`twilight_http::Error`] was returned
     #[error("{0}")]
     Http(#[from] twilight_http::Error),
-    /// A [`twilight_http::response::DeserializeBodyError`] was returned
-    #[error("{0}")]
-    DeserializeBody(#[from] twilight_http::response::DeserializeBodyError),
-    /// A [`twilight_gateway::stream::StartRecommendedError`] was returned
-    #[error("{0}")]
-    StartRecommended(#[from] twilight_gateway::stream::StartRecommendedError),
-    /// A [`twilight_validate::request::ValidationError`] was returned
-    #[error("{0}")]
-    RequestValidation(#[from] twilight_validate::request::ValidationError),
-    /// A [`twilight_validate::message::MessageValidationError`] was returned
-    #[error("{0}")]
-    MessageValidation(#[from] twilight_validate::message::MessageValidationError),
     /// [`Bot::log`] was called without calling [`Bot::set_logging_channel`]
     /// first
     ///
@@ -54,6 +34,50 @@ pub enum Error {
     /// [`Bot::set_logging_channel`]: crate::Bot::set_logging_channel
     #[error("`Bot::log` was called without calling `Bot::set_logging_channel` first")]
     LoggingWebhookMissing,
+    /// A [`MessageValidationError`] was returned
+    #[error("{0}")]
+    MessageValidation(#[from] MessageValidationError),
+    /// A [`request::ValidationError`] was returned
+    #[error("{0}")]
+    RequestValidation(#[from] request::ValidationError),
+    /// A [`stream::StartRecommendedError`] was returned
+    #[error("{0}")]
+    StartRecommended(#[from] stream::StartRecommendedError),
+}
+
+/// Trait implemented on types that can be converted into an [`anyhow::Error`]
+#[cfg(feature = "anyhow")]
+pub trait IntoError<T>: Sized {
+    /// Conditionally wrap this type in [`anyhow::Error`]
+    ///
+    /// The error message only includes the type info and isn't very useful
+    /// without enabling backtrace
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`anyhow::Error`] if the value should return an error
+    fn ok(self) -> Result<T, anyhow::Error>;
+}
+
+/// A marker type to be used with [`UserError`] without a custom error
+///
+/// The display implementation of this is added to be compatible with
+/// `anyhow::Error` and shouldn't be used
+#[derive(Debug, Clone, Copy)]
+pub struct NoCustomError;
+
+impl Display for NoCustomError {
+    #[expect(clippy::min_ident_chars, reason = "default parameter names are used")]
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str("display implementation of `NoCustomError` shouldn't be used")
+    }
+}
+
+#[cfg(feature = "anyhow")]
+impl<T> IntoError<T> for Option<T> {
+    fn ok(self) -> Result<T, anyhow::Error> {
+        self.ok_or_else(|| anyhow::anyhow!("{} is None", type_name::<Self>()))
+    }
 }
 
 /// A user-facing error
@@ -69,8 +93,15 @@ pub enum Error {
 /// The display implementation of this is added to be compatible with
 /// `anyhow::Error` and shouldn't be used
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[allow(clippy::module_name_repetitions)]
 pub enum UserError<C> {
+    /// A custom error was returned
+    Custom(C),
+    /// The error is safe to ignore
+    ///
+    /// In this case, the error shouldn't even be reported to the user
+    Ignore,
+    /// An error has occurred on the application's side
+    Internal,
     /// The bot is missing some required permissions
     ///
     /// `None` when the error occurred outside of
@@ -80,23 +111,38 @@ pub enum UserError<C> {
     /// [`InteractionHandle::check_permissions`]:
     /// crate::interaction::InteractionHandle::check_permissions
     MissingPermissions(Option<Permissions>),
-    /// A custom error was returned
-    Custom(C),
-    /// An error has occurred on the application's side
-    Internal,
-    /// The error is safe to ignore
-    ///
-    /// In this case, the error shouldn't even be reported to the user
-    Ignore,
 }
 
-impl<C> Display for UserError<C> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("display implementation of `UserError` shouldn't be used")
+impl<C> UserError<C> {
+    /// Creates this error from an HTTP error
+    ///
+    /// If you use `anyhow`, use [`UserError::from_anyhow_err`] instead
+    ///
+    /// Checks if the error is a permission error or if it should be ignored,
+    /// returns [`UserError::Internal`] if not
+    pub const fn from_http_err(http_err: &twilight_http::Error) -> Self {
+        match http_error::Error::from_http_err(http_err) {
+            http_error::Error::UnknownMessage
+            | http_error::Error::FailedDm
+            | http_error::Error::ReactionBlocked => Self::Ignore,
+            http_error::Error::MissingPermissions | http_error::Error::MissingAccess => {
+                Self::MissingPermissions(None)
+            }
+            http_error::Error::Unknown => Self::Internal,
+        }
+    }
+
+    /// If this is a [`UserError::MissingPermissions`] error, replace
+    /// the wrapped errors with the given permissions
+    #[must_use]
+    pub fn with_permissions(self, permissions: Permissions) -> Self {
+        if let Self::MissingPermissions(_) = self {
+            Self::MissingPermissions(Some(permissions))
+        } else {
+            self
+        }
     }
 }
-
-impl<C: Debug> std::error::Error for UserError<C> {}
 
 impl<C: Clone + Display + Debug + Send + Sync + 'static> UserError<C> {
     /// Create this error from [`anyhow::Error`]
@@ -124,93 +170,11 @@ impl<C: Clone + Display + Debug + Send + Sync + 'static> UserError<C> {
     }
 }
 
-impl<C> UserError<C> {
-    /// Creates this error from an HTTP error
-    ///
-    /// If you use `anyhow`, use [`UserError::from_anyhow_err`] instead
-    ///
-    /// Checks if the error is a permission error or if it should be ignored,
-    /// returns [`UserError::Internal`] if not
-    pub const fn from_http_err(http_err: &twilight_http::Error) -> Self {
-        match http_error::Error::from_http_err(http_err) {
-            http_error::Error::UnknownMessage
-            | http_error::Error::FailedDm
-            | http_error::Error::ReactionBlocked => Self::Ignore,
-            http_error::Error::MissingPermissions | http_error::Error::MissingAccess => {
-                Self::MissingPermissions(None)
-            }
-            http_error::Error::Unknown => Self::Internal,
-        }
-    }
-
-    /// If this is a [`UserError::MissingPermissions`] error, replace
-    /// the wrapped errors with the given permissions
-    #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn with_permissions(self, permissions: Permissions) -> Self {
-        if let Self::MissingPermissions(_) = self {
-            Self::MissingPermissions(Some(permissions))
-        } else {
-            self
-        }
+impl<C> Display for UserError<C> {
+    #[expect(clippy::min_ident_chars, reason = "default parameter names are used")]
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str("display implementation of `UserError` shouldn't be used")
     }
 }
 
-/// A marker type to be used with [`UserError`] without a custom error
-///
-/// The display implementation of this is added to be compatible with
-/// `anyhow::Error` and shouldn't be used
-#[derive(Debug, Clone, Copy)]
-#[allow(clippy::module_name_repetitions)]
-pub struct NoCustomError;
-
-impl Display for NoCustomError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("display implementation of `NoCustomError` shouldn't be used")
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::error::{NoCustomError, UserError};
-
-    #[test]
-    #[cfg(feature = "anyhow")]
-    fn user_err_downcast() {
-        use std::fmt::{Display, Formatter};
-
-        #[derive(Debug, Clone, Copy)]
-        enum CustomError {
-            TooSlay,
-        }
-
-        impl Display for CustomError {
-            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-                f.write_str("slayed too hard")
-            }
-        }
-
-        let missing_perms_from_anyhow = UserError::<CustomError>::from_anyhow_err(
-            &anyhow::anyhow!(UserError::MissingPermissions::<CustomError>(None)),
-        );
-        assert!(matches!(
-            missing_perms_from_anyhow,
-            UserError::MissingPermissions(None)
-        ));
-
-        let custom_from_anyhow =
-            UserError::from_anyhow_err(&anyhow::anyhow!(UserError::Custom(CustomError::TooSlay)));
-        assert!(matches!(
-            custom_from_anyhow,
-            UserError::Custom(CustomError::TooSlay)
-        ));
-
-        let internal_from_anyhow = UserError::from_anyhow_err(&anyhow::anyhow!("feature occurred"));
-        assert!(matches!(
-            internal_from_anyhow,
-            UserError::<CustomError>::Internal
-        ));
-    }
-
-    const fn _user_err_no_custom(_: UserError<NoCustomError>) {}
-}
+impl<C: Debug> error::Error for UserError<C> {}

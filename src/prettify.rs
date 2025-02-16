@@ -5,12 +5,6 @@ use std::fmt::Debug;
 use titlecase::titlecase;
 use twilight_model::guild::Permissions;
 
-/// Implemented on types that can be turned into pretty strings
-pub trait Prettify: Debug {
-    /// Return the pretty string for this type
-    fn prettify(&self) -> String;
-}
-
 impl Prettify for Permissions {
     /// # Example
     ///
@@ -35,4 +29,10 @@ impl Prettify for Permissions {
 
         titlecase(&format!("{self:?}").replace(" | ", "\n").replace('_', " "))
     }
+}
+
+/// Implemented on types that can be turned into pretty strings
+pub trait Prettify: Debug {
+    /// Return the pretty string for this type
+    fn prettify(&self) -> String;
 }

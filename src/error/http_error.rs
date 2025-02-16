@@ -1,17 +1,20 @@
-use twilight_http::api_error::{ApiError, GeneralApiError};
+use twilight_http::{
+    api_error::{ApiError, GeneralApiError},
+    error::ErrorType,
+};
 
 pub(crate) enum Error {
-    UnknownMessage,
-    MissingAccess,
     FailedDm,
+    MissingAccess,
     MissingPermissions,
     ReactionBlocked,
     Unknown,
+    UnknownMessage,
 }
 
 impl Error {
     pub(crate) const fn from_http_err(err: &twilight_http::Error) -> Self {
-        let code = if let twilight_http::error::ErrorType::Response {
+        let code = if let ErrorType::Response {
             error: ApiError::General(GeneralApiError { code, .. }),
             ..
         } = err.kind()

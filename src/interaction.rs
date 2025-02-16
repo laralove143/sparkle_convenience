@@ -1,5 +1,9 @@
 //! Convenient interaction handling
 
+pub mod extract;
+#[cfg(test)]
+mod tests;
+
 use std::{
     fmt::Debug,
     sync::{
@@ -36,52 +40,13 @@ use crate::{
     reply::Reply,
 };
 
-pub mod extract;
-
-/// Defines whether a defer request should be ephemeral
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DeferVisibility {
-    /// The defer request is only shown to the user that created the interaction
-    Ephemeral,
-    /// The defer request is shown to everyone in the channel
-    Visible,
-}
-
-/// Defines whether a defer request should update the message or create a new
-/// message on the next response
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DeferBehavior {
-    /// The next response creates a new message
-    Followup,
-    /// The next response updates the last message
-    Update,
-}
-
-/// Allows convenient methods on interaction handling
-///
-/// Created with [`Bot::interaction_handle`]
-#[derive(Debug, Clone)]
-#[allow(clippy::module_name_repetitions)]
-pub struct InteractionHandle<'bot> {
-    /// The bot data to make requests with
-    bot: &'bot Bot,
-    /// The interaction's ID
-    id: Id<InteractionMarker>,
-    /// The interaction's token
-    token: String,
-    /// The interaction's type
-    kind: InteractionType,
-    /// The bot's permissions
-    app_permissions: Permissions,
-    /// Whether the interaction was already responded to
-    responded: Arc<AtomicBool>,
-    /// ID of the last message sent as response to the interaction
-    ///
-    /// 0 if `None`
-    last_message_id: Arc<AtomicU64>,
-}
-
 impl Bot {
+    /// Return the interaction client for this bot
+    #[must_use]
+    pub fn interaction_client(&self) -> InteractionClient<'_> {
+        self.http.interaction(self.application.id)
+    }
+
     /// Return an interaction's handle
     #[must_use]
     pub fn interaction_handle(&self, interaction: &Interaction) -> InteractionHandle<'_> {
@@ -95,15 +60,84 @@ impl Bot {
             last_message_id: Arc::new(AtomicU64::new(0)),
         }
     }
+}
 
-    /// Return the interaction client for this bot
-    #[must_use]
-    pub fn interaction_client(&self) -> InteractionClient<'_> {
-        self.http.interaction(self.application.id)
-    }
+/// Defines whether a defer request should update the message or create a new
+/// message on the next response
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DeferBehavior {
+    /// The next response creates a new message
+    Followup,
+    /// The next response updates the last message
+    Update,
+}
+
+/// Defines whether a defer request should be ephemeral
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DeferVisibility {
+    /// The defer request is only shown to the user that created the interaction
+    Ephemeral,
+    /// The defer request is shown to everyone in the channel
+    Visible,
+}
+
+/// Allows convenient methods on interaction handling
+///
+/// Created with [`Bot::interaction_handle`]
+#[derive(Debug, Clone)]
+#[expect(
+    clippy::module_name_repetitions,
+    reason = "`Handle` is too generic as a name"
+)]
+pub struct InteractionHandle<'bot> {
+    /// The bot's permissions
+    app_permissions: Permissions,
+    /// The bot data to make requests with
+    bot: &'bot Bot,
+    /// The interaction's ID
+    id: Id<InteractionMarker>,
+    /// The interaction's type
+    kind: InteractionType,
+    /// ID of the last message sent as response to the interaction
+    ///
+    /// 0 if `None`
+    last_message_id: Arc<AtomicU64>,
+    /// Whether the interaction was already responded to
+    responded: Arc<AtomicBool>,
+    /// The interaction's token
+    token: String,
 }
 
 impl InteractionHandle<'_> {
+    /// Respond to this command with autocomplete suggestions
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::AlreadyResponded`] if this is not the first
+    /// response to the interaction
+    ///
+    /// Returns [`Error::Http`] if creating the response fails
+    pub async fn autocomplete(&self, choices: Vec<CommandOptionChoice>) -> Result<(), Error> {
+        if self.responded() {
+            return Err(Error::AlreadyResponded);
+        }
+
+        self.bot
+            .interaction_client()
+            .create_response(self.id, &self.token, &InteractionResponse {
+                kind: InteractionResponseType::ApplicationCommandAutocompleteResult,
+                data: Some(InteractionResponseData {
+                    choices: Some(choices),
+                    ..Default::default()
+                }),
+            })
+            .await?;
+
+        self.set_responded(true);
+
+        Ok(())
+    }
+
     /// Check that the bot has the required permissions
     ///
     /// # Warning
@@ -126,42 +160,6 @@ impl InteractionHandle<'_> {
         }
 
         Ok(())
-    }
-
-    /// Report an error returned in an interaction context to the user
-    ///
-    /// The passed reply should be the reply that should be shown to the user
-    /// based on the error
-    ///
-    /// See [`UserError`] for creating the error parameter
-    ///
-    /// If the given error should be ignored, simply returns `Ok(None)` early
-    ///
-    /// Replies to the interaction with the given reply and returns what
-    /// [`InteractionHandle::reply`] returns
-    ///
-    /// # Errors
-    ///
-    /// If [`InteractionHandle::reply`] fails and the error is internal, returns
-    /// the error
-    pub async fn report_error<C: Send>(
-        &self,
-        reply: Reply,
-        error: UserError<C>,
-    ) -> Result<Option<Message>, Error> {
-        if matches!(error, UserError::Ignore) {
-            return Ok(None);
-        }
-
-        match self.reply(reply).await {
-            Ok(message) => Ok(message),
-            Err(Error::Http(err))
-                if !matches!(UserError::<C>::from_http_err(&err), UserError::Internal) =>
-            {
-                Ok(None)
-            }
-            Err(err) => Err(err),
-        }
     }
 
     /// Defer the interaction
@@ -202,6 +200,97 @@ impl InteractionHandle<'_> {
         behavior: DeferBehavior,
     ) -> Result<(), Error> {
         self.defer_with_behavior(visibility, behavior).await
+    }
+
+    async fn defer_with_behavior(
+        &self,
+        visibility: DeferVisibility,
+        behavior: DeferBehavior,
+    ) -> Result<(), Error> {
+        if self.responded() {
+            return Err(Error::AlreadyResponded);
+        }
+
+        let kind = if self.kind == InteractionType::MessageComponent {
+            match behavior {
+                DeferBehavior::Followup => {
+                    InteractionResponseType::DeferredChannelMessageWithSource
+                }
+                DeferBehavior::Update => InteractionResponseType::DeferredUpdateMessage,
+            }
+        } else {
+            InteractionResponseType::DeferredChannelMessageWithSource
+        };
+
+        let defer_response = InteractionResponse {
+            kind,
+            data: Some(InteractionResponseData {
+                flags: (visibility == DeferVisibility::Ephemeral)
+                    .then_some(MessageFlags::EPHEMERAL),
+                ..Default::default()
+            }),
+        };
+
+        self.bot
+            .interaction_client()
+            .create_response(self.id, &self.token, &defer_response)
+            .await?;
+
+        self.set_responded(true);
+
+        Ok(())
+    }
+
+    fn last_message_id(&self) -> Option<Id<MessageMarker>> {
+        let id = self.last_message_id.load(Ordering::Acquire);
+        if id == 0 { None } else { Some(Id::new(id)) }
+    }
+
+    /// Respond to this command with a modal
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::AlreadyResponded`] if this is not the first
+    /// response to the interaction
+    ///
+    /// Returns [`Error::Http`] if creating the response fails
+    pub async fn modal<T: Into<String> + Send, U: Into<String> + Send>(
+        &self,
+        custom_id: T,
+        title: U,
+        text_inputs: Vec<TextInput>,
+    ) -> Result<(), Error> {
+        let responded = self.responded();
+
+        if responded {
+            return Err(Error::AlreadyResponded);
+        }
+
+        self.bot
+            .interaction_client()
+            .create_response(self.id, &self.token, &InteractionResponse {
+                kind: InteractionResponseType::Modal,
+                data: Some(InteractionResponseData {
+                    custom_id: Some(custom_id.into()),
+                    title: Some(title.into()),
+                    components: Some(
+                        text_inputs
+                            .into_iter()
+                            .map(|text_input| {
+                                Component::ActionRow(ActionRow {
+                                    components: vec![Component::TextInput(text_input)],
+                                })
+                            })
+                            .collect(),
+                    ),
+                    ..Default::default()
+                }),
+            })
+            .await?;
+
+        self.set_responded(true);
+
+        Ok(())
     }
 
     /// Reply to this command
@@ -326,154 +415,51 @@ impl InteractionHandle<'_> {
         }
     }
 
-    /// Respond to this command with autocomplete suggestions
+    /// Report an error returned in an interaction context to the user
+    ///
+    /// The passed reply should be the reply that should be shown to the user
+    /// based on the error
+    ///
+    /// See [`UserError`] for creating the error parameter
+    ///
+    /// If the given error should be ignored, simply returns `Ok(None)` early
+    ///
+    /// Replies to the interaction with the given reply and returns what
+    /// [`InteractionHandle::reply`] returns
     ///
     /// # Errors
     ///
-    /// Returns [`Error::AlreadyResponded`] if this is not the first
-    /// response to the interaction
-    ///
-    /// Returns [`Error::Http`] if creating the response fails
-    pub async fn autocomplete(&self, choices: Vec<CommandOptionChoice>) -> Result<(), Error> {
-        if self.responded() {
-            return Err(Error::AlreadyResponded);
-        }
-
-        self.bot
-            .interaction_client()
-            .create_response(self.id, &self.token, &InteractionResponse {
-                kind: InteractionResponseType::ApplicationCommandAutocompleteResult,
-                data: Some(InteractionResponseData {
-                    choices: Some(choices),
-                    ..Default::default()
-                }),
-            })
-            .await?;
-
-        self.set_responded(true);
-
-        Ok(())
-    }
-
-    /// Respond to this command with a modal
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::AlreadyResponded`] if this is not the first
-    /// response to the interaction
-    ///
-    /// Returns [`Error::Http`] if creating the response fails
-    pub async fn modal(
+    /// If [`InteractionHandle::reply`] fails and the error is internal, returns
+    /// the error
+    pub async fn report_error<C: Send>(
         &self,
-        custom_id: impl Into<String> + Send,
-        title: impl Into<String> + Send,
-        text_inputs: Vec<TextInput>,
-    ) -> Result<(), Error> {
-        let responded = self.responded();
-
-        if responded {
-            return Err(Error::AlreadyResponded);
+        reply: Reply,
+        error: UserError<C>,
+    ) -> Result<Option<Message>, Error> {
+        if matches!(error, UserError::Ignore) {
+            return Ok(None);
         }
 
-        self.bot
-            .interaction_client()
-            .create_response(self.id, &self.token, &InteractionResponse {
-                kind: InteractionResponseType::Modal,
-                data: Some(InteractionResponseData {
-                    custom_id: Some(custom_id.into()),
-                    title: Some(title.into()),
-                    components: Some(
-                        text_inputs
-                            .into_iter()
-                            .map(|text_input| {
-                                Component::ActionRow(ActionRow {
-                                    components: vec![Component::TextInput(text_input)],
-                                })
-                            })
-                            .collect(),
-                    ),
-                    ..Default::default()
-                }),
-            })
-            .await?;
-
-        self.set_responded(true);
-
-        Ok(())
-    }
-
-    async fn defer_with_behavior(
-        &self,
-        visibility: DeferVisibility,
-        behavior: DeferBehavior,
-    ) -> Result<(), Error> {
-        if self.responded() {
-            return Err(Error::AlreadyResponded);
-        }
-
-        let kind = if self.kind == InteractionType::MessageComponent {
-            match behavior {
-                DeferBehavior::Followup => {
-                    InteractionResponseType::DeferredChannelMessageWithSource
-                }
-                DeferBehavior::Update => InteractionResponseType::DeferredUpdateMessage,
+        match self.reply(reply).await {
+            Ok(message) => Ok(message),
+            Err(Error::Http(err))
+                if !matches!(UserError::<C>::from_http_err(&err), UserError::Internal) =>
+            {
+                Ok(None)
             }
-        } else {
-            InteractionResponseType::DeferredChannelMessageWithSource
-        };
-
-        let defer_response = InteractionResponse {
-            kind,
-            data: Some(InteractionResponseData {
-                flags: (visibility == DeferVisibility::Ephemeral)
-                    .then_some(MessageFlags::EPHEMERAL),
-                ..Default::default()
-            }),
-        };
-
-        self.bot
-            .interaction_client()
-            .create_response(self.id, &self.token, &defer_response)
-            .await?;
-
-        self.set_responded(true);
-
-        Ok(())
+            Err(err) => Err(err),
+        }
     }
 
     fn responded(&self) -> bool {
         self.responded.load(Ordering::Acquire)
     }
 
-    fn set_responded(&self, val: bool) {
-        self.responded.store(val, Ordering::Release);
-    }
-
-    fn last_message_id(&self) -> Option<Id<MessageMarker>> {
-        let id = self.last_message_id.load(Ordering::Acquire);
-        if id == 0 { None } else { Some(Id::new(id)) }
-    }
-
     fn set_last_message_id(&self, val: Id<MessageMarker>) {
         self.last_message_id.store(val.get(), Ordering::Release);
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use std::sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    };
-
-    #[test]
-    #[allow(clippy::redundant_clone, clippy::clone_on_ref_ptr)]
-    fn atomic_preserved() {
-        let responded = Arc::new(AtomicBool::new(false));
-        let responded_clone = responded.clone();
-
-        responded.store(true, Ordering::Release);
-
-        assert!(responded_clone.load(Ordering::Acquire));
+    fn set_responded(&self, val: bool) {
+        self.responded.store(val, Ordering::Release);
     }
 }
